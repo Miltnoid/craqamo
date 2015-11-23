@@ -1222,7 +1222,7 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 		if( fd<0 ) {
 			report_bad_node(succ);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1232,12 +1232,12 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 			LOG_WARN << "Error propagating key\n";
 			report_bad_node(succ);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		} else if(!rpc_ret) {
 			LOG_WARN << "Bad return value from propogating key\n";
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1316,7 +1316,7 @@ tamed void back_propagate(ID_Value chain_id, ID_Value id, bool send_committed, c
 		if( fd<0 ) {
 			report_bad_node(pred->second);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1324,7 +1324,7 @@ tamed void back_propagate(ID_Value chain_id, ID_Value id, bool send_committed, c
 		if(e || !rpc_ret) {
 			report_bad_node(pred->second);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1395,7 +1395,7 @@ tamed void ack(ID_Value chain_id, ID_Value id, cbb cb) {
 		if( fd<0 ) {
 			report_bad_node(pred);
 			backoff++;
-			twait { delaycb (0, 50 * 1000000 * backoff, mkevent ()); }
+			twait { delaycb (0, 50 * 1000000 * backoff, mkevent_o ()); }
 			continue;
 		}
 
@@ -1403,12 +1403,12 @@ tamed void ack(ID_Value chain_id, ID_Value id, cbb cb) {
 		if(e) {
 			report_bad_node(pred);
 			backoff++;
-			twait { delaycb (0, 50 * 1000000 * backoff, mkevent ()); }
+			twait { delaycb (0, 50 * 1000000 * backoff, mkevent_o ()); }
 			continue;
 		} else if(!rpc_ret) {
 			continue;
 			backoff++;
-			twait { delaycb (0, 50 * 1000000 * backoff, mkevent ()); }
+			twait { delaycb (0, 50 * 1000000 * backoff, mkevent_o ()); }
 		}
 
 	}

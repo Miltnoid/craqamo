@@ -313,7 +313,7 @@ tamed static void main2(int argc, char **argv) {
 	}
 
 
-	twait { connect_to_manager(zookeeper_list, mkevent()); }
+	twait { connect_to_manager(zookeeper_list, mkevent_o()); }
 
 	id = get_sha1(chain_name);
 	loc = ring_succ(id);

@@ -45,7 +45,8 @@ LDADD= $(SFS_LIB_DIR)/libtame.a \
 		-lzookeeper_st \
 		-llog4cpp \
 		-lpthread \
-		-lconfig++
+		-lconfig++ \
+		-lpcre
 	
 OBJS= craq_rpc.c \
       ID_Value.c \

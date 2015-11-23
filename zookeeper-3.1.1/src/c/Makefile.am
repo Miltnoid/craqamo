@@ -2,8 +2,8 @@
 include $(top_srcdir)/aminclude.am
 
 AM_CPPFLAGS = -Iinclude -Igenerated
-AM_CFLAGS = -Wall -Werror 
-CXXFLAGS = -Wall -g
+AM_CFLAGS = -Werror 
+CXXFLAGS =  -g
 
 LIB_LDFLAGS = -no-undefined -version-info 2
 

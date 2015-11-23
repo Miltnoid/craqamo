@@ -249,7 +249,7 @@ connect_to_manager(str h, int port) {
 		if(i > NUM_MESSAGES-1) {
 			i = 0;
 		}*/
-		twait{ delaycb(0, wait_time, mkevent()); }
+		twait{ delaycb(0, wait_time, mkevent_o()); }
 	}
 	//ss.str("");
 	//ss << (sum_data / (double)num_data);

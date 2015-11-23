@@ -349,10 +349,10 @@ tamed static void run_test() {
 	while ( time_diff(start_time, cur_time) < NUM_SECS ) {
 		gettimeofday(&cur_time, NULL);
 		if(MSGS_PER_SEC == 0) {
-			twait { op(&chain_id, &id, mkevent()); }
+			twait { op(&chain_id, &id, mkevent_o()); }
 		} else if(MSGS_PER_SEC != -1) {
 			op(&chain_id, &id, wrap(nothing));
-			twait{ delaycb(0, wait_time, mkevent()); }
+			twait{ delaycb(0, wait_time, mkevent_o()); }
 		} else if((nsent-nrecv) < WINDOW_SIZE) {
 			op(&chain_id, &id, mkevent(rv, 0));
 			nsent++;
@@ -554,7 +554,7 @@ tamed static void main2(int argc, char **argv) {
 		fatal << "Error: " << e.error().c_str() << " for arg " << e.argId().c_str() << "\n";
 	}
 
-	twait { connect_to_manager(zookeeper_list, mkevent()); }
+	twait { connect_to_manager(zookeeper_list, mkevent_o()); }
 	run_test();
 }
 
