@@ -135,6 +135,7 @@ public:
 #endif
 
 #define mkevent(...) _mkevent (__cls_g, __FL__, __cls_type, ##__VA_ARGS__)
+#define mkevent_o(...) _mkevent (__cls_g, __FL__, __cls_type)
 #define mkevent_rs(...) _mkevent_rs (__cls_g, __FL__, __cls_type, ##__VA_ARGS__)
 
 #endif /* _LIBTAME_TAME_EVENT_H_ */
