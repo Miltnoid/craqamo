@@ -19,10 +19,10 @@ LIBCONFIG_BIN = ./libconfig_install
 
 GMP_DIR = ./gmp-4.3.1
 
-CC=g++
+CC=g++ -std=c++11
 
 
-AM_LDFLAGS =-g -O2 -Wall -Werror -Wno-unused -Wno-sign-compare \
+AM_LDFLAGS =-g -O2 -Wall -Wno-unused -Wno-sign-compare \
             -L$(LOG4CPP_BIN)/lib -L$(LIBCONFIG_BIN)/lib \
             -L$(CRYPTO_PP_DIR) -L$(ZOOKEEPER_BIN)/lib
 AM_CPPFLAGS= $(AM_LDFLAGS) -x c++
