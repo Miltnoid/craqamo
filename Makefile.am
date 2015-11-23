@@ -1,4 +1,4 @@
-SFS_DIR=./sfslite-1.2.7
+SFS_DIR=./sfslite
 SFS_BIN=./sfs_install
 SFS_LIB_DIR=$(SFS_BIN)/lib/sfslite
 SFS_INCLUDE_DIR=$(SFS_BIN)/include/sfslite
@@ -81,7 +81,7 @@ dist-hook:
 #if they are renamed on account of an upgraded version or anything else:
 #  cryptopp560
 #  gmp-4.3.1
-#  sfslite-1.2.7
+#  sfslite
 #  zookeeper-3.1.1
 #  log4cpp-1.0
 lib_install:
