@@ -37,7 +37,7 @@ fi
 
 #sfslite
 export SFS_BIN="./sfs_install"
-export SFS_DIR="./sfslite-1.2.7"
+export SFS_DIR="./sfslite"
 
 if [ ! -d "$SFS_BIN" ]; then
 	mkdir -p $SFS_BIN

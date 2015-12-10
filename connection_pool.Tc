@@ -31,7 +31,7 @@ get_rpc_cli( const char * host, unsigned int port,
 				return;
 			} else {
 				//try and wait and see if the other function call will get it
-				twait { delaycb (0, 10, _mkevent (__cls_g, __FL__, __cls_type)); }
+				twait { delaycb (0, 10, mkevent_o ()); }
 				it = conn_pool[cur_pool].begin();
 			}
 		} else {

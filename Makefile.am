@@ -1,4 +1,4 @@
-SFS_DIR=./sfslite-1.2.7
+SFS_DIR=./sfslite
 SFS_BIN=./sfs_install
 SFS_LIB_DIR=$(SFS_BIN)/lib/sfslite
 SFS_INCLUDE_DIR=$(SFS_BIN)/include/sfslite
@@ -22,7 +22,7 @@ GMP_DIR = ./gmp-4.3.1
 CC=g++ -std=c++11
 
 
-AM_LDFLAGS =-g -O2 -Wall -Werror -Wno-unused -Wno-sign-compare \
+AM_LDFLAGS =-g -O2 -Wall -Wno-unused -Wno-sign-compare \
             -L$(LOG4CPP_BIN)/lib -L$(LIBCONFIG_BIN)/lib \
             -L$(CRYPTO_PP_DIR) -L$(ZOOKEEPER_BIN)/lib
 AM_CPPFLAGS= $(AM_LDFLAGS) -x c++
@@ -82,7 +82,7 @@ dist-hook:
 #if they are renamed on account of an upgraded version or anything else:
 #  cryptopp560
 #  gmp-4.3.1
-#  sfslite-1.2.7
+#  sfslite
 #  zookeeper-3.1.1
 #  log4cpp-1.0
 lib_install:
