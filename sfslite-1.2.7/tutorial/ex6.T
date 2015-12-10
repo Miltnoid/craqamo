@@ -1,10 +1,9 @@
 // -*-c++-*-
-/* $Id: ex6.T 2669 2007-04-02 19:16:53Z max $ */
+/* $Id$ */
 
 #include "tame.h"
 #include "arpc.h"
 #include "parseopt.h"
-#include "ex_prot.h"
 
 tamed static 
 void dostuff (vec<str> hosts, int port, cbi done)

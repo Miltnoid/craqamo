@@ -1,4 +1,4 @@
-/* $Id: xdr_mpz_t.C 3758 2008-11-13 00:36:00Z max $ */
+/* $Id$ */
 
 #include "arpc.h"
 #include "bigint.h"

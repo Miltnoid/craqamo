@@ -1,4 +1,4 @@
-/* $Id: socket.C 2967 2007-07-24 15:20:57Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -43,6 +43,7 @@ enum { maxsobufsize = 0x05000 }; /* 16K + header */
 #endif /* !SFS_ALLOW_LARGE_BUFFER */
 int sndbufsize = maxsobufsize;
 int rcvbufsize = maxsobufsize;
+bool use_reuseaddr = false;
 in_addr inet_bindaddr;
 INITFN(init_env);
 static void
@@ -52,6 +53,9 @@ init_env ()
     sndbufsize = atoi (p);
   if (char *p = safegetenv ("RCVBUFSIZE"))
     rcvbufsize = atoi (p);
+  if (char *p = safegetenv ("SFS_USE_REUSEADDR")) {
+      use_reuseaddr = (bool) atoi(p);
+  }
 
   char *p = safegetenv ("BINDADDR");
   if (!p || inet_aton (p, &inet_bindaddr) <= 0)
@@ -128,7 +132,6 @@ inetsocket (int type, u_int16_t port, u_int32_t addr)
 {
   int s;
   int n;
-  socklen_t sn;
   struct sockaddr_in sin;
 
   bzero (&sin, sizeof (sin));
@@ -141,10 +144,9 @@ inetsocket (int type, u_int16_t port, u_int32_t addr)
   if ((s = socket (AF_INET, type, 0)) < 0)
     return -1;
 
-  sn = sizeof (n);
   n = 1;
   /* Avoid those annoying TIME_WAITs for TCP */
-  if (port && type == SOCK_STREAM
+  if ( (port || use_reuseaddr) && type == SOCK_STREAM
       && setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *) &n, sizeof (n)) < 0)
     fatal ("inetsocket: SO_REUSEADDR: %s\n", strerror (errno));
  again:
@@ -161,6 +163,36 @@ inetsocket (int type, u_int16_t port, u_int32_t addr)
   }
   close (s);
   return -1;
+}
+
+int inetsocket6(int type, u_int16_t port, const in6_addr& addr) {
+    int s;
+    int n;
+    struct sockaddr_in6 sin;
+
+    bzero (&sin, sizeof (sin));
+    sin.sin6_family = AF_INET6;
+    sin.sin6_port = htons (port);
+    sin.sin6_flowinfo = 0;
+    for (size_t i = 0; i < 4; i++) {
+        sin.sin6_addr.s6_addr32[i] = htonl(addr.s6_addr32[i]);
+    }
+
+    if ((s = socket (PF_INET6, type, 0)) < 0)
+        return -1;
+
+    n = 1;
+    /* Avoid those annoying TIME_WAITs for TCP */
+    if (port && type == SOCK_STREAM
+        && setsockopt (s, SOL_SOCKET, SO_REUSEADDR, (char *) &n, sizeof (n)) < 0)
+        fatal ("inetsocket: SO_REUSEADDR: %s\n", strerror (errno));
+
+    if (bind (s, (struct sockaddr *) &sin, sizeof (sin)) >= 0) {
+        return s;
+    }
+
+    close (s);
+    return -1;
 }
 
 int

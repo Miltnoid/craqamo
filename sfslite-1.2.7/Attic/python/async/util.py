@@ -1,5 +1,5 @@
 #
-# $Id: util.py 866 2005-05-16 17:30:08Z max $
+# $Id$
 #
 import async.core
 import signal

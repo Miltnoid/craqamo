@@ -1,10 +1,11 @@
-dnl $Id: configure.in 5102 2010-01-29 21:48:04Z max $
+dnl $Id$
 dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
 AC_INIT(acinclude.m4)
-AM_INIT_AUTOMAKE(sfslite,1.2.8.2)
+AC_CONFIG_AUX_DIR([.])
+AM_INIT_AUTOMAKE(sfslite,1.2.9.15)
 AM_CONFIG_HEADER(config.h)
 
 dnl
@@ -12,13 +13,14 @@ dnl Autoconf now recommending this...
 dnl
 AC_CONFIG_MACRO_DIR([m4])
 
+
 dnl
 dnl Pass the given argument to libtool -version-info, thereby
 dnl versioning the .so's that we're going to spit out.  Start
 dnl with version 1.0.0, since 0.0.0 is already in use.  Must
 dnl manually update everytim we change the ABI.
 dnl
-SFS_INIT_LDVERSION(18)
+SFS_INIT_LDVERSION(44)
 
 dnl
 dnl begin SFSLITE change
@@ -46,11 +48,14 @@ SFS_PYTHON
 
 dnl Checks for programs.
 AC_SYS_LARGEFILE  dnl MW adding b/c we want 64-bit offsets
-AC_PROG_CC
+AC_PROG_CC([clang gcc cc])
 AC_PROG_CPP
-AC_PROG_CXX
+AC_PROG_CXX([clang++ g++ c++])
 AM_PROG_LEX
-AC_PROG_YACC
+
+dnl AC_PROG_YACC defaults to yacc when nothing is found.
+AC_CHECK_PROGS([YACC], ['bison -y' byacc yacc], [$MISSING 'bison -y'])
+
 SFS_WFLAGS
 SFS_PATH_CPP
 AC_PROG_INSTALL
@@ -61,6 +66,7 @@ AC_PATH_PROGS(M4, gm4 gnum4 m4, '$(top_srcdir)/missing')
 test "$RPCC" || RPCC='$(top_builddir)/rpcc/rpcc'
 test "$TAME" || TAME='$(top_builddir)/tame/tame'
 SFS_UCONTEXT_RBP
+SFS_UCONTEXT_RIP
 SFS_RBP_ASM_REG
 
 dnl Check for X Windows
@@ -247,6 +253,7 @@ SFS_CHECK_BSD_REUSEADDR
 SFS_CHECK_EGID_IN_GROUPLIST
 SFS_FIND_RESOLV
 SFS_FIND_CRYPT
+SFS_FIND_PCRE
 SFS_GMP
 SFS_OPENSSL
 SFS_CHECK_SETUSERCONTEXT
@@ -265,6 +272,9 @@ fi
 
 dnl Add SFS libraries to LDADD by default.
 CPPFLAGS="$CPPFLAGS -I"'$(top_srcdir)'
+
+dnl Add UTF8-Support
+CPPFLAGS="$CPPFLAGS -DSUPPORT_UTF8=1"
 
 dnl
 dnl on some Linuxes, there are /usr/include/{err|crypt}.h; we want to suck
@@ -390,6 +400,8 @@ fi
 AC_SUBST(sfsbindir)
 CPPFLAGS="$CPPFLAGS -DEXECDIR="'\"$(sfsexecdir)\"'
 
+SFS_CPP11_IF_POSSIBLE
+
 dnl
 dnl END sfslite changes
 dnl
@@ -499,7 +511,8 @@ AC_OUTPUT(Makefile async/Makefile libsafeptr/Makefile rpcc/Makefile
         tame/Makefile svc/Makefile libtame/Makefile libaapp/Makefile
 	arpcgen/Makefile 
         libsfs/Makefile tests/Makefile tutorial/Makefile
-	tools/Makefile tools/rtftp/Makefile tools/tinetd/Makefile)
+	tools/Makefile tools/rtftp/Makefile tools/tinetd/Makefile
+	tools/logger/Makefile tools/ncpp/Makefile async/sfs_assert.h)
 
 dnl
 dnl end SFSlite changes

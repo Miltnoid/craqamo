@@ -1,5 +1,5 @@
 #! /bin/sh -e
-# $Id: setup 1246 2005-12-07 02:19:46Z max $
+# $Id$
 #
 # This script builds the files necessary to configure this package for
 # development.  Once you run this script, you will need GNU make,

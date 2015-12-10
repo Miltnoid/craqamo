@@ -949,6 +949,46 @@ fi
 CFLAGS=$ac_save_CFLAGS
 CPPFLAGS="$CPPFLAGS $sfs_cv_pthread_h"
 LIBS="$ac_save_LIBS $sfs_cv_libpthread"])
+
+dnl
+dnl Find PCRE
+dnl
+AC_DEFUN([SFS_FIND_PCRE],
+[AC_ARG_WITH(pcre,
+--with-pcre=DIR       Specify location of pcre)
+ac_save_CFLAGS=$CFLAGS
+ac_save_LIBS=$LIBS
+dirs="$with_pcre ${prefix} ${prefix}/pcre"
+dirs="$dirs /usr/local /usr/local/pcre"
+AC_CACHE_CHECK(for pcre.h, sfs_cv_pcre_h,
+[for dir in " " $dirs; do
+    iflags="-I${dir}/include"
+    CFLAGS="${ac_save_CFLAGS} $iflags"
+    AC_TRY_COMPILE([#include <pcre.h>], 0,
+	sfs_cv_pcre_h="${iflags}"; break)
+done])
+if test -z "${sfs_cv_pcre_h+set}"; then
+    AC_MSG_ERROR("Can\'t find pcre.h anywhere")
+fi
+AC_CACHE_CHECK(for libpcre, sfs_cv_libpcre,
+[for dir in "" " " $dirs; do
+    case $dir in
+	"") lflags=" " ;;
+	" ") lflags="-lpcre" ;;
+	*) lflags="-L${dir}/lib -lpcre" ;;
+    esac
+    LIBS="$ac_save_LIBS $lflags"
+    AC_TRY_LINK([#include <pcre.h>],
+	pcre_compile ("", 0, NULL, NULL,NULL);,
+	sfs_cv_libpcre=$lflags; break)
+done])
+if test -z ${sfs_cv_libpcre+set}; then
+    AC_MSG_ERROR("Can\'t find libpcre anywhere")
+fi
+CFLAGS=$ac_save_CFLAGS
+CPPFLAGS="$CPPFLAGS $sfs_cv_pcre_h"
+LIBS="$ac_save_LIBS $sfs_cv_libpcre"])
+
 dnl
 dnl Find GMP
 dnl
@@ -962,7 +1002,7 @@ if test "$with_gmp" != "no"; then
 	ac_save_CPPFLAGS=$CPPFLAGS
 	ac_save_LIBS=$LIBS
 	cdirs="${with_gmp}/include ${prefix}/include"
-	dirs="$cdirs /usr/local/include /usr/include"
+	dirs="$cdirs /usr/local/include /usr/include /opt/local/include"
 	AC_CACHE_CHECK(for gmp.h, sfs_cv_gmp_h,
 	[for dir in " " $dirs; do
 		case $dir in
@@ -982,7 +1022,7 @@ if test "$with_gmp" != "no"; then
 	fi
 	if test "${sfs_cv_gmp_h+set}"; then
 		cdirs="${with_gmp}/lib ${prefix}/lib"
-		dirs="$cdirs /usr/local/lib /usr/lib"
+		dirs="$cdirs /usr/local/lib /usr/lib /opt/local/lib"
 		AC_CACHE_CHECK(for libgmp, sfs_cv_libgmp,
 		[for dir in "" " " $dirs; do
 			case $dir in
@@ -1467,7 +1507,11 @@ case $host_os in
 	sfs_gnu_WFLAGS="-Wall -Wsign-compare -Wchar-subscripts -Werror"
 	sfs_gnu_CXXWFLAGS="$sfs_gnu_WFLAGS"
 	;;
-    linux*|freebsd*)
+    linux*)
+	sfs_gnu_WFLAGS="-Wall -Werror"
+	sfs_gnu_CXXWFLAGS="$sfs_gnu_WFLAGS -Wno-mismatched-tags -Wno-overloaded-virtual -Wno-unused-private-field"
+	;;
+    freebsd*)
 	sfs_gnu_WFLAGS="-Wall -Werror"
 	sfs_gnu_CXXWFLAGS="$sfs_gnu_WFLAGS"
 	;;
@@ -1494,7 +1538,7 @@ AC_DEFUN([SFS_CFLAGS],
 [unset CFLAGS
 unset CXXFLAGS
 CFLAGS='$(DEBUG) $(WFLAGS) $(ECFLAGS) $(CFLAGS_PROFILE)'
-CXXFLAGS='$(CXXDEBUG) $(CXXWFLAGS) $(ECXXFLAGS) $(CFLAGS_PROFILE)'])
+CXXFLAGS='$(CXXDEBUG) $(CXXWFLAGS) $(ECXXFLAGS) $(CFLAGS_PROFILE) $(CXX11FLAGS)'])
 dnl
 dnl Check for xdr_u_intNN_t, etc
 dnl
@@ -1973,8 +2017,10 @@ if test "${with_tag+set}" = "set" -a "$with_tag" != "no"; then
 	sfstag=$with_tag
 fi
 install_to_system_bin=0
+sfsdebug=0
 case $with_mode in
 	"debug" )
+		sfsdebug=1
 		DEBUG=-g
 		CXXDEBUG=-g
 		sfstag=$with_mode
@@ -2002,11 +2048,12 @@ case $with_mode in
 		;;
 
 	"shdbg"  )
+		sfsdebug=1
 		sfstag=$with_mode
 		enable_shared=yes
 		DEBUG=-g
 		CXXDEBUG=-g
-		with_dmalloc=yes
+		with_dmalloc=no
 		;;
 
 	"profile" )
@@ -2016,6 +2063,7 @@ case $with_mode in
 		;;
 
 	"pydbg" )
+		sfsdebug=1
 		sfstag=$with_mode
 		DEBUG=-g
 		CXXDEBUG=-g
@@ -2058,12 +2106,17 @@ fi
 
 AC_SUBST(sfstagdir)
 AC_SUBST(sfstag)
+AC_SUBST(sfsdebug)
 
 if test "${enable_shared}" = "yes"; then
 	AC_DEFINE(SFS_COMPILE_SHARED, 1,
 	     Define if SFS libs are compiled with shared libs)
 fi
 
+if test "x${sfsdebug}" = "x1"; then
+	AC_DEFINE([SFS_DEBUG], 1,
+	     [Define if SFS libs are compiled in debug mode])
+fi
 ])
 
 dnl
@@ -2435,7 +2488,14 @@ dnl
 dnl SFS_INIT_LDVERSION
 dnl
 AC_DEFUN([SFS_INIT_LDVERSION],
-[LIBTOOL_VERSION_INFO="-version-info $1"
+[
+if test "$2"; then
+    ABI_VERSION='[`] expr $1 + [$(]$2[) `]'
+else
+    ABI_VERSION="$1"
+fi
+LIBTOOL_VERSION_INFO="-version-info "'$(ABI_VERSION)'
+AC_SUBST(ABI_VERSION)
 AC_SUBST(LIBTOOL_VERSION_INFO)
 ])
 dnl
@@ -2468,13 +2528,40 @@ if test ${sfs_cv_ucontext_rbp+set} ; then
    AC_DEFINE_UNQUOTED(UCONTEXT_RBP, $sfs_cv_ucontext_rbp, where in the ucontext object to find %rbp)
 fi
 ])
+
+AC_DEFUN([SFS_UCONTEXT_RIP],
+[AC_CACHE_CHECK(for rip structure in ucontext_t, sfs_cv_ucontext_rip,
+[
+
+for r in rip eip; do 
+    if test ! ${sfs_cv_ucontext_rip+set} ; then
+       AC_TRY_COMPILE([#include <ucontext.h>
+], [ ucontext_t ut; ut.uc_mcontext.mc_$r = 0; ], 
+   sfs_cv_ucontext_rip="uc_mcontext.mc_$r")
+   fi
+done
+
+for r in REG_RIP REG_EIP ; do
+    if test ! ${sfs_cv_ucontext_rip+set} ; then
+       AC_TRY_COMPILE([
+#define _GNU_SOURCE 1
+#include <ucontext.h>
+      ], [ ucontext_t ut; ut.uc_mcontext.gregs[$r] = 0; ],
+     sfs_cv_ucontext_rip=[["uc_mcontext.gregs[$r]"]] )
+    fi
+done
+])
+if test ${sfs_cv_ucontext_rip+set} ; then
+   AC_DEFINE_UNQUOTED(UCONTEXT_RIP, $sfs_cv_ucontext_rip, where in the ucontext object to find %rip)
+fi
+])
 dnl
 dnl Read RBP out of a register
 dnl
 AC_DEFUN([SFS_RBP_ASM_REG],
 [AC_CACHE_CHECK(for reading %rbp from assembly, sfs_cv_read_rbp,
 [
-for r in "movl %%ebp" "movq %%rbp" ; do
+for r in "movq %%rbp" "movl %%ebp" ; do
     if ! test ${sfs_cv_read_rbp+set} ; then
        AC_TRY_COMPILE([], [
           void *v;
@@ -2520,4 +2607,44 @@ then
     AC_SUBST(CFLAGS_PROFILE)
     AC_DEFINE(SIMPLE_PROFILER, 1, Define to turn on a simple profiler)
 fi
+])
+
+dnl we strongly prefer c++11
+AC_DEFUN([SFS_CPP11_IF_POSSIBLE],
+[
+    OLDCXXFLAGS="$CXXFLAGS"
+    CXXFLAGS="-Werror --std=gnu++0x"
+    OLDCPPFLAGS="$CPPFLAGS"
+    CPPFLAGS=""
+    AC_LANG_PUSH(C++)
+    AC_CACHE_CHECK(for c++11, sfs_cv_cpp11,
+        AC_TRY_COMPILE([], [
+           auto x = 0;
+        ], sfs_cv_cpp11=yes, sfs_cv_cpp11=no)
+    )
+    AC_LANG_POP()
+    CPPFLAGS="$OLDCPPFLAGS"
+    CXXFLAGS="$OLDCXXFLAGS"
+
+    if test "$sfs_cv_cpp11" = yes; then
+        CXX11FLAGS="--std=gnu++0x"
+        AC_ARG_WITH(custom-cpp11-stl,
+        --with-custom-cpp11-stl=DIR     specify a custom directory for cpp11's stl,
+        [
+            STLDIR=$withval
+            AC_CHECK_FILE($STLDIR/vector, [], [
+                AC_MSG_ERROR(Invalid stl directory $STLDIR)
+            ])
+            CXX11FLAGS="$CXX11FLAGS -I$STLDIR -I$STLDIR/backward -I$STLDIR/x86_64-unknown-linux-gnu/"
+        ], [] )
+        AC_SUBST(CXX11FLAGS)
+    fi
+
+    AC_ARG_ENABLE(force-cpp11,
+    --enable-force-cpp11        fail if c++11 is not available,
+    [
+        if test "$sfs_cv_cpp11" = no; then
+            AC_MSG_ERROR(you specified --enable-force-cpp11 but your compiler does not support c++11.)
+        fi
+    ], [] )
 ])

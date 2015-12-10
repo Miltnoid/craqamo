@@ -1,4 +1,4 @@
-/* $Id: serial.C 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -43,8 +43,8 @@ import_srp_params (str raw, bigint *Np, bigint *gp)
   if (!r.search (raw))
     return false;
 
-  *Np = r[1];
-  *gp = r[2];
+  *Np = r[1].cstr();
+  *gp = r[2].cstr();
   return true;
 }
 

@@ -1,4 +1,4 @@
-/* $Id: nfs_prot.x 1754 2006-05-19 20:59:19Z max $ */
+/* $Id$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for

@@ -1,4 +1,4 @@
-/* $Id: suio_vuprintf.C 3146 2007-12-20 17:44:02Z max $ */
+/* $Id$ */
 
 /*-
  * Copyright (c) 1990 The Regents of the University of California.
@@ -124,10 +124,10 @@ __suio_vuprintf (const char *line, struct suio *uio,
 #endif /* DSPRINTF_DEBUG */
 {
   char *fmt = (char *) _fmt;
-  register int ch;		/* character from fmt */
-  register int n, m;		/* handy integers (short term usage) */
-  register char *cp;		/* handy char pointer (short term usage) */
-  register int flags;		/* flags as above */
+  int ch;		/* character from fmt */
+  int n, m;		/* handy integers (short term usage) */
+  char *cp;		/* handy char pointer (short term usage) */
+  int flags;		/* flags as above */
   int width;			/* width from format (%8d), or 0 */
   int prec;			/* precision from format (%.3d), or -1 */
   char sign;			/* sign prefix (' ', '+', '-', or \0) */

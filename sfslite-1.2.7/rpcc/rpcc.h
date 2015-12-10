@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: rpcc.h 3273 2008-05-17 19:46:54Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -235,3 +235,9 @@ rpc_program *get_prog (bool creat);
 
 // added for pyc/pyh generation
 extern str python_module_name;
+
+// RPC Contants can try to guess #-defines
+extern bool guess_defines;
+
+str make_csafe_filename (str fname);
+str make_constant_collect_hook (str fname);

@@ -1,4 +1,4 @@
-/* $Id: genheader.C 3828 2008-12-12 14:19:11Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -31,6 +31,8 @@ pmshl (str id)
     "void *" << id << "_alloc ();\n"
     XDR_RETURN " xdr_" << id << " (XDR *, void *);\n";
 }
+
+static const char *rpc_field = "const char *field = NULL";
 
 static str
 rpc_decltype (const rpc_decl *d)
@@ -89,18 +91,25 @@ dumpstruct (const rpc_sym *s)
 
   aout << "\ntemplate<class T> "
        << (rs->decls.size () > 1 ? "" : "inline ") << "bool\n"
-       << "rpc_traverse (T &t, " << rs->id << " &obj)\n"
-       << "{\n";
+       << "rpc_traverse (T &t, " << rs->id << " &obj, " << rpc_field << ")\n"
+       << "{\n"
+       << "  bool ret = true;\n"
+       << "  rpc_enter_field (t, field);\n" ;
+
   const rpc_decl *rd = rs->decls.base ();
   if (rd < rs->decls.lim ()) {
-    aout << "  return rpc_traverse (t, obj." << (rd++)->id << ")";
-    while (rd < rs->decls.lim ())
-      aout << "\n    && rpc_traverse (t, obj." << (rd++)->id << ")";
+    aout << "  ret = rpc_traverse (t, obj." << rd->id 
+	 << ", \"" << rd->id << "\")";
+    rd++;
+    for ( ; rd < rs->decls.lim (); rd++ ) {
+      aout << "\n    && rpc_traverse (t, obj." << rd->id 
+	   << ", \"" << rd->id << "\")";
+    }
     aout << ";\n";
   }
-  else
-    aout << "  return true;\n";
-  aout << "}\n\n";
+  aout << "  rpc_exit_field (t, field);\n"
+       << "  return ret;\n"
+       << "}\n\n";
 }
 
 void
@@ -111,13 +120,15 @@ pswitch (str prefix, const rpc_union *rs, str swarg,
   bool hasdefault = false;
   str subprefix = strbuf () << prefix << "  ";
 
-  aout << prefix << "switch (" << swarg << ") {" << suffix;
+  bool btype = (rs->tagtype == "bool");
+  aout << prefix << "switch (" << ((btype) ? "(int)" : "") << swarg << ") {" 
+       << suffix;
   for (const rpc_utag *rt = rs->cases.base (); rt < rs->cases.lim (); rt++) {
     if (rt->swval) {
       if (rt->swval == "TRUE")
-	aout << prefix << "case true:" << suffix;
+	aout << prefix << "case 1:" << suffix;
       else if (rt->swval == "FALSE")
-	aout << prefix << "case false:" << suffix;
+	aout << prefix << "case 0:" << suffix;
       else
 	aout << prefix << "case " << rt->swval << ":" << suffix;
     }
@@ -149,7 +160,8 @@ puniontraverse (str prefix, const rpc_union *rs, const rpc_utag *rt)
   if (rt->tag.type == "void")
     aout << prefix << "return true;\n";
   else
-    aout << prefix << "return rpc_traverse (t, *obj." << rt->tag.id << ");\n";
+    aout << prefix << "return rpc_traverse (t, *obj." << rt->tag.id 
+	 << ", \"" << rt->tag.id << "\");\n";
 }
 
 static void
@@ -184,16 +196,12 @@ punionmacrodefault (str prefix, const rpc_union *rs)
 static void
 dumpunion (const rpc_sym *s)
 {
-  bool hasdefault = false;
-
   const rpc_union *rs = s->sunion.addr ();
   aout << "\nstruct " << rs->id << " {\n"
        << "  const " << rs->tagtype << " " << rs->tagid << ";\n"
        << "  union {\n"
        << "    union_entry_base _base;\n";
   for (const rpc_utag *rt = rs->cases.base (); rt < rs->cases.lim (); rt++) {
-    if (!rt->swval)
-      hasdefault = true;
     if (rt->tagvalid && rt->tag.type != "void") {
       str type = rpc_decltype (&rt->tag);
       if (type[type.len ()-1] == '>')
@@ -242,21 +250,27 @@ dumpunion (const rpc_sym *s)
   aout << "};\n";
 
   aout << "\ntemplate<class T> bool\n"
-       << "rpc_traverse (T &t, " << rs->id << " &obj)\n"
+       << "rpc_traverse (T &t, " << rs->id << " &obj, " << rpc_field << ")\n"
        << "{\n"
+       << "  bool ret = true;\n"
+       << "  rpc_enter_field (t, field);\n"
        << "  " << rs->tagtype << " tag = obj." << rs->tagid << ";\n"
-       << "  if (!rpc_traverse (t, tag))\n"
-       << "    return false;\n"
-       << "  if (tag != obj." << rs->tagid << ")\n"
-       << "    obj.set_" << rs->tagid << " (tag);\n\n"
-       << "  rpcunion_switch_" << rs->id << "\n"
-       << "    (obj." << rs->tagid << ", RPCUNION_TRAVERSE, "
-       << "return true, return false);\n"
-       << "  /* gcc 4.0.3 makes buggy warnings without the following line */\n"
-       << "  return false;\n"
+       << "  if (!rpc_traverse (t, tag, \"" << rs->tagid << "\")) { \n"
+       << "    ret = false;\n"
+       << "  } else {\n"
+       << "    if (tag != obj." << rs->tagid << ")\n"
+       << "      obj.set_" << rs->tagid << " (tag);\n\n"
+       << "    rpcunion_switch_" << rs->id << "\n"
+       << "      (obj." << rs->tagid << ", ret = RPCUNION_TRAVERSE_2, "
+       << "ret = true, ret = false);\n"
+       << "    /* gcc 4.0.3 makes buggy warnings without the following.. */\n"
+       << "  }\n"
+       << "  rpc_exit_field (t, field);\n"
+       << "  return ret;\n"
        << "}\n"
        << "inline bool\n"
-       << "rpc_traverse (const stompcast_t &s, " << rs->id << " &obj)\n"
+       << "rpc_traverse (const stompcast_t &s, " << rs->id << " &obj, "
+       << rpc_field << ")\n"
        << "{\n"
        << "  rpcunion_switch_" << rs->id << "\n"
        << "    (obj." << rs->tagid << ", RPCUNION_REC_STOMPCAST,\n"
@@ -289,7 +303,7 @@ dumpenum (const rpc_sym *s)
     else if (lastval && (isdigit (lastval[0]) || lastval[0] == '-'
 			 || lastval[0] == '+'))
       aout << "  " << rc->id << " = "
-	   << strtol (lastval, NULL, 0) + ctr++ << ",\n";
+           << strtol (lastval.cstr(), NULL, 0) + ctr++ << ",\n";
     else if (lastval)
       aout << "  " << rc->id << " = " << lastval << " + " << ctr++ << ",\n";
     else
@@ -301,13 +315,18 @@ dumpenum (const rpc_sym *s)
   aout << "TYPE2STRUCT( , " << rs->id << ");\n";
 
   aout << "\ntemplate<class T> inline bool\n"
-       << "rpc_traverse (T &t, " << rs->id << " &obj)\n"
+       << "rpc_traverse (T &t, " << rs->id << " &obj, " << rpc_field << ")\n"
        << "{\n"
        << "  u_int32_t val = obj;\n"
-       << "  if (!rpc_traverse (t, val))\n"
-       << "    return false;\n"
-       << "  obj = " << rs->id << " (val);\n"
-       << "  return true;\n"
+       << "  bool ret = true;\n"
+       << "  rpc_enter_field (t, field);\n"
+       << "  if (!rpc_traverse (t, val)) {\n"
+       << "    ret = false;\n"
+       << "  } else {\n"
+       << "    obj = " << rs->id << " (val);\n"
+       << "  }\n"
+       << "  rpc_exit_field (t, field);\n"
+       << "  return ret;\n"
        << "}\n";
 }
 
@@ -412,6 +431,8 @@ dump_tmpl_proc_1 (const str &arg, const str &res, const str &fn,
   aout << ", cb); ";
   aout << "}\n\n";
 }
+
+
 static void
 dump_tmpl_proc_2 (const str &arg, const str &res, const str &fn,
 		  const str &spc, const str &rpc,
@@ -448,8 +469,10 @@ is_builtin(const str &s)
 }
 
 static void
-dump_tmpl_class (const str &arg, const str &res, const str &c, const str &spc)
+dump_tmpl_class (const str &arg, const str &res, const str &c, const str& fn,
+                 const str& rpc, const str &spc)
 {
+    
   aout << spc << "template<class S>\n"
        << spc << "class " << c << " {\n"
        << spc << "public:\n"
@@ -477,7 +500,6 @@ dump_tmpl_class (const str &arg, const str &res, const str &c, const str &spc)
 	 << "ptr<" << res << ">\n"
 	 << spc << "  alloc_res (const T &t) "
 	 << " { return New refcounted<" << res << "> (t); }\n";
-
   } else {
     aout << spc << "  " << "void reply () "
 	 << "{ check_reply (); _sbp->reply (NULL); }\n";
@@ -492,6 +514,28 @@ dump_tmpl_class (const str &arg, const str &res, const str &c, const str &spc)
        << spc << "  " << "void reject () "
        << "{ check_reply (); _sbp->reject (); }\n\n";
 
+  // MM: Generate typedefs for types, if they don't exist mark them void
+  aout << spc << "  typedef " << (arg ? arg : str("void")) << " arg_ty;\n\n";
+  aout << spc << "  typedef " << (res ? res : str("void")) << " res_ty;\n\n";
+
+  // MM: Call with standard amount of arguments
+  str argstr="void", resstr="void";
+  if (arg) argstr = arg;
+  if (res) resstr = res;
+  dump_tmpl_proc_1(argstr, resstr, "call_full", spc << "  ", true, rpc,
+                 "C", "C", NULL, true);
+
+  // MM: Call that mirrors the ones generated before this class
+  argstr = ""; resstr = "";
+  if (arg) argstr = "const " << arg << "* arg,";
+  if (res) resstr = " " << res << "* res,";
+  aout << spc << "  template<class C, class E>\n";
+  aout << spc << "  void call(C c, " << argstr
+       << resstr << " E cb)\n";
+  argstr=""; resstr="";
+  if (arg) argstr = "arg, ";
+  if (res) resstr = "res,";
+  aout << spc << "  { " << fn << "(c, " << argstr << resstr << " cb); }\n\n";
 
   aout << spc << "private:\n"
        << spc << "  void check_reply () "
@@ -514,7 +558,7 @@ dump_tmpl_proc (const rpc_proc *rc)
   aout << spc << "// " << rc->id 
        << " -----------------------------------------\n\n";
   dump_tmpl_proc_3 (arg, res, fn, spc, rc->id);
-  dump_tmpl_class (arg, res, strbuf ("%s_srv_t", fn.cstr ()), spc);
+  dump_tmpl_class (arg, res, strbuf ("%s_srv_t", fn.cstr ()), fn, rc->id, spc);
 }
 
 static void
@@ -582,7 +626,7 @@ makeguard (str fname)
   strbuf guard;
   const char *p;
 
-  if ((p = strrchr (fname, '/')))
+  if ((p = strrchr (fname.cstr(), '/')))
     p++;
   else p = fname;
 
@@ -597,6 +641,33 @@ makeguard (str fname)
   guard << "_INCLUDED__";
 
   return guard;
+}
+  
+static void
+dump_constant_collect_hook (str fname)
+{
+  str csafe_fname = make_csafe_filename (fname);
+  str cch = make_constant_collect_hook (fname);
+
+  aout << "/*\n"
+       << " *\n"
+       << " * MK note on RPC constant collection:\n"
+       << " *\n"
+       << " * The goal of this magic is to aggregate ALL of the RPC contants\n"
+       << " * in ALL of the .x files recursively included by your server\n"
+       << " * to be accessible at runtime to your server.  Thus, every\n"
+       << " * autogenerated .h protocol file will have one of these static\n"
+       << " * objects in it.  The static object itself doesn't do anything\n"
+       << " * other than call a constructor function, which in turn will\n"
+       << " * add this rpc_constant_collector_t hook (" << cch << ")\n"
+       << " * to a global list of hooks (see rpc_add_cch_t in"
+       << " extensible_arpc.C)\n"
+       << " *\n"
+       << " */\n";
+  aout << "extern void "
+       << cch << " (rpc_constant_collector_t *rcc);\n"
+       << "static rpc_add_cch_t " 
+       << csafe_fname << "_obj (" << cch << ");\n\n";
 }
 
 void
@@ -622,6 +693,8 @@ genheader (str fname)
     last = s->type;
     dumpsym (s);
   }
+
+  dump_constant_collect_hook (fname);
 
   aout << "#endif /* !" << guard << " */\n";
 }

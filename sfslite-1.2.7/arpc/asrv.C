@@ -1,4 +1,4 @@
-/* $Id: asrv.C 4728 2009-10-16 20:08:40Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -25,20 +25,25 @@
 #include "arpc.h"
 #include "xdr_suio.h"
 #include "rpc_stats.h"
+#include "rxx.h"
+#include "parseopt.h"
 
 #ifdef MAINTAINER
 int asrvtrace (getenv ("ASRV_TRACE") ? atoi (getenv ("ASRV_TRACE")) : 0);
 bool asrvtime (getenv ("ASRV_TIME"));
+bool asrvsource (getenv ("ASRV_SOURCE"));
 void set_asrvtrace (int l) { asrvtrace = l; }
 void set_asrvtime (bool b) { asrvtime = b; }
 int get_asrvtrace (void) { return asrvtrace; }
 bool get_asrvtime (void) { return asrvtime; }
+bool get_asrvsource (void) { return asrvsource; }
+void set_asrvsource (bool b) { asrvsource = b; }
 #else /* !MAINTAINER */
-enum { asrvtrace = 0, asrvtime = 0 };
+enum { asrvtrace = 0, asrvtime = 0, asrvsource = 0 };
 #endif /* !MAINTAINER */
 
-#define trace (traceobj (asrvtrace, "ASRV_TRACE: ", asrvtime))
-
+#define asrvfd (asrvsource ? get_trace_fd () : -1)
+#define trace (traceobj (asrvtrace, "ASRV_TRACE: ", asrvtime, asrvfd))
 
 inline u_int32_t
 xidswap (u_int32_t xid)
@@ -166,24 +171,34 @@ svccb::reply (const void *reply, sfs::xdrproc_t xdr, bool nocache)
   rm.acpted_rply.ar_verf = _null_auth;
   rm.acpted_rply.ar_stat = SUCCESS;
   rm.acpted_rply.ar_results.where = (char *) reply;
-  rm.acpted_rply.ar_results.proc
-    = reinterpret_cast<sun_xdrproc_t> (xdr ? xdr : srv->tbl[proc ()].xdr_res);
 
   get_rpc_stats ().end_call (this, ts_start);
 
   xdrsuio x (XDR_ENCODE);
+  const rpcgen_table *tbl = NULL;
+
+  ptr<v_XDR_t> vx = xdr_virtual_map (m_rpcvers, &x);
+  tbl = &srv->tbl[proc()];
+
+  rm.acpted_rply.ar_results.proc
+    = reinterpret_cast<sun_xdrproc_t> (xdr ? xdr : tbl->xdr_res);
+
   if (!xdr_replymsg (x.xdrp (), &rm)) {
     warn ("svccb::reply: xdr_replymsg failed\n");
     delete this;
     return;
   }
 
-  trace (4, "reply %s:%s x=%x\n",
-	 srv->rpcprog->name, srv->tbl[msg.rm_call.cb_proc].name,
+  // Virtual flush feature for virtual dispatches
+  if (vx) { vx->flush (&x); }
+
+  trace (4, "reply %s:%s x=%x\n", srv->rpcprog->name, tbl->name, 
 	 xidswap (msg.rm_xid));
-  if (asrvtrace >= 5 && !xdr && srv->tbl[msg.rm_call.cb_proc].print_res)
-    srv->tbl[msg.rm_call.cb_proc].print_res (reply, NULL, asrvtrace - 4,
-					     "REPLY", "");
+
+  if (asrvtrace >= 5 && !xdr && tbl->print_res) {
+    tbl->print_res (reply, NULL, asrvtrace - 4, "REPLY", "");
+  }
+
   srv->sendreply (this, &x, nocache);
 }
 
@@ -346,15 +361,24 @@ asrv::xprt () const
 }
 
 ptr<asrv>
-asrv::alloc (ref<axprt> x, const rpc_program &pr, asrv_cb::ptr cb)
+asrv::alloc (ref<axprt> x, const rpc_program &pr, asrv_cb::ptr cb, 
+	     bool fire_virtual_hook)
 {
   ptr<xhinfo> xi = xhinfo::lookup (x);
-  if (!xi)
-    return NULL;
-  if (x->reliable)
-    return New refcounted<asrv> (xi, pr, cb);
-  else
-    return New refcounted<asrv_unreliable> (xi, pr, cb);
+  ptr<asrv> ret;
+  if (!xi) { }
+  else if (x->reliable) { 
+    ret = New refcounted<asrv> (xi, pr, cb);
+  } else {
+    ret = New refcounted<asrv_unreliable> (xi, pr, cb);
+  }
+
+  // There can be a virtual hook here, to register some companion
+  // asrv for every asrv allocated on this channel.
+  if (fire_virtual_hook) {
+    xdr_virtual_asrv_alloc (x);
+  }
+  return ret;
 }
 
 void
@@ -381,8 +405,8 @@ asrv::sendreply (svccb *sbp, xdrsuio *x, bool)
     // and other cases, we get a TRUE.
     if (!xi->xh->sendv (x->iov (), x->iovcnt (), sbp->addr)) {
 
-      warn ("RPC %d:%d:%d failed (due to excess packet largess?)\n",
-	    sbp->prog (), sbp->vers (), sbp->proc ());
+      warn ("RPC %d:%d:%d failed, maybe due to excess packet largess? "
+	    "error was: %m\n", sbp->prog (), sbp->vers (), sbp->proc ());
 
       // If the channel is robust to this failure case, then be polite
       // and tell the client on the other end that we refused to send
@@ -397,7 +421,9 @@ asrv::sendreply (svccb *sbp, xdrsuio *x, bool)
   /* If x contains a marshaled version of sbp->template getres<...> (),
    * we need to clear the uio first (since deleting sbp will delete
    * the object getres returned). */
-  if (sbp->resdat)
+  // MM: don't do this if there is no xdrsuio passed in, this happens
+  // if we had called getvoidres() and then rejected the RPC
+  if (sbp->resdat && x)
     xsuio (x)->clear ();
   dec_svccb_count ();
   delete sbp;
@@ -411,6 +437,28 @@ asrv::setcb (asrv_cb::ptr c)
     (*cb) (NULL);
 }
 
+//-----------------------------------------------------------------------
+
+static u_int32_t
+xdr_virtual_version (XDR *x)
+{
+  u_int32_t rpcvers = RPC_MSG_VERSION;
+  if (v_XDR_dispatch) {
+    u_int32_t pos = xdr_getpos (x);
+    int32_t *buf = XDR_INLINE (x, 3*4);
+    if (buf) {
+      rpcvers = htonl (buf[2]);
+      if (rpcvers != RPC_MSG_VERSION) {
+	buf[2] = ntohl (RPC_MSG_VERSION);
+      }
+      xdr_setpos (x, pos);
+    }
+  }
+  return rpcvers;
+}
+
+//-----------------------------------------------------------------------
+
 void
 asrv::dispatch (ref<xhinfo> xi, const char *msg, ssize_t len,
 		const sockaddr *src)
@@ -423,19 +471,37 @@ asrv::dispatch (ref<xhinfo> xi, const char *msg, ssize_t len,
   xdrmem x (msg, len, XDR_DECODE);
   auto_ptr<svccb> sbp (New svccb);
   rpc_msg *m = &sbp->msg;
+  ptr<v_XDR_t> v_x;
+  u_int32_t rpcvers;
+  asrv *s = NULL;
+
+#define trace_static \
+  (traceobj (asrvtrace, "ASRV_TRACE: ", asrvtime, s ? s->get_trace_fd () : 1))
+
+  // If the RPC MSG VERSION number in the packet does not 
+  // equal RPC_MSG_VERSION (=2), then fetch it out of the packet,
+  // allocate a virtual XDR objects accordingly, but then reset
+  // the packet to RPC_MSG_VERSION, so that xdr_callmsg succeeds..
+  if ((rpcvers = xdr_virtual_version (x.xdrp ())) != RPC_MSG_VERSION) {
+    v_x = xdr_virtual_map (rpcvers, x.xdrp ());
+  }
 
   if (!xdr_callmsg (x.xdrp (), m)) {
-    trace (1) << "asrv::dispatch: xdr_callmsg failed\n";
+    trace_static (1) << "asrv::dispatch: xdr_callmsg failed\n";
     seteof (xi, src);
     return;
   }
+
   if (m->rm_call.cb_rpcvers != RPC_MSG_VERSION) {
-    trace (1) << "asrv::dispatch: bad RPC message version\n";
+    trace_static (1) << "asrv::dispatch: bad RPC message version\n";
     asrv_rpc_mismatch (xi, src, m->rm_xid);
     return;
   }
 
-  asrv *s = xi->stab[progvers (sbp->prog (), sbp->vers ())];
+  sbp->set_rpcvers (rpcvers);
+
+  s = xi->stab[progvers (sbp->prog (), sbp->vers ())];
+
   if (!s || !s->cb) {
     if (asrvtrace >= 1) {
       if (s)
@@ -456,6 +522,7 @@ asrv::dispatch (ref<xhinfo> xi, const char *msg, ssize_t len,
   sbp->init (s, src);
 
   if (sbp->proc () >= s->nproc) {
+
     if (asrvtrace >= 1)
       warn ("asrv::dispatch: invalid procno %s:%u\n",
 	    s->rpcprog->name, (u_int) sbp->proc ());
@@ -464,14 +531,31 @@ asrv::dispatch (ref<xhinfo> xi, const char *msg, ssize_t len,
   }
 
   if (s->isreplay (sbp.get ())) {
-    trace (4, "replay %s:%s x=%x",
-           s->rpcprog->name, s->tbl[m->rm_call.cb_proc].name,
-           xidswap (m->rm_xid)) << sock2str (src) << "\n";
+    trace_static (4, "replay %s:%s x=%x",
+	   s->rpcprog->name, s->tbl[m->rm_call.cb_proc].name,
+	   xidswap (m->rm_xid)) << sock2str (src) << "\n";
     return;
   }
 
-  const rpcgen_table *rtp = &s->tbl[sbp->proc ()];
-  sbp->arg = s->tbl[sbp->proc ()].alloc_arg ();
+  const rpcgen_table *rtp = &s->tbl[sbp->proc ()]; 
+
+  if (v_x) { 
+    // For the virtual XDRs, set the payload in a way that's very
+    // accesible to the virtual wrapper class.
+    ssize_t pos = XDR_GETPOS(x.xdrp());
+    if (!(v_x->init_decode (msg + pos, len - pos))) {
+      if (asrvtrace >= 1)
+	warn ("asrv::dispatch: bad message %s:%s x=%x", s->rpcprog->name,
+	      rtp->name, xidswap (m->rm_xid))
+	  << sock2str (src) << "\n";
+      asrv_accepterr (xi, src, GARBAGE_ARGS, m);
+      s->inc_svccb_count ();
+      s->sendreply (sbp.release (), NULL, true);
+      return;
+    }
+  }
+
+  sbp->arg = rtp->alloc_arg ();
   if (!rtp->xdr_arg (x.xdrp (), sbp->arg)) {
     if (asrvtrace >= 1)
       warn ("asrv::dispatch: bad message %s:%s x=%x", s->rpcprog->name,
@@ -485,24 +569,28 @@ asrv::dispatch (ref<xhinfo> xi, const char *msg, ssize_t len,
 
   if (asrvtrace >= 2) {
     if (const authunix_parms *aup = sbp->getaup ())
-      trace (2, "serve %s:%s x=%x u=%u g=%u",
-	     s->rpcprog->name, rtp->name, xidswap (m->rm_xid),
-             aup->aup_uid, aup->aup_gid)
-	       << sock2str (src) << "\n";
+      trace_static (2, "serve %s:%s x=%x u=%u g=%u",
+		    s->rpcprog->name, rtp->name, xidswap (m->rm_xid),
+		    aup->aup_uid, aup->aup_gid)
+	<< sock2str (src) << "\n";
     else if (u_int32_t i = sbp->getaui ())
-      trace (2, "serve %s:%s x=%x i=%u",
-	     s->rpcprog->name, rtp->name, xidswap (m->rm_xid), i)
-	       << sock2str (src) << "\n";
+      trace_static (2, "serve %s:%s x=%x i=%u",
+		    s->rpcprog->name, rtp->name, xidswap (m->rm_xid), i)
+	<< sock2str (src) << "\n";
     else
-      trace (2, "serve %s:%s x=%x",
-	     s->rpcprog->name, rtp->name, xidswap (m->rm_xid))
-	       << sock2str (src) << "\n";
+      trace_static (2, "serve %s:%s x=%x",
+		    s->rpcprog->name, rtp->name, xidswap (m->rm_xid))
+	<< sock2str (src) << "\n";
   }
   if (asrvtrace >= 5 && rtp->print_arg)
     rtp->print_arg (sbp->arg, NULL, asrvtrace - 4, "ARGS", "");
 
   s->inc_svccb_count ();
+
   (*s->cb) (sbp.release ());
+
+#undef trace_static
+
 }
 
 
@@ -781,3 +869,19 @@ asrv_delayed_eof::sendreply (svccb *s, xdrsuio *x, bool nocache)
     asrv::sendreply (s, x, nocache);
   }
 }
+
+// Format: level:time:source
+void
+set_asrv_debug (str s)
+{
+  int tmp;
+  static rxx x ("[:._|-]");
+  vec<str> v;
+  split (&v, x, s);
+  if (v.size () > 0 && convertint (v[0], &tmp)) { set_asrvtrace (tmp); }
+  if (v.size () > 1 && convertint (v[1], &tmp)) { set_asrvtime (tmp); }
+  if (v.size () > 2 && convertint (v[2], &tmp)) { set_asrvsource (tmp); }
+}
+
+int svccb::get_trace_fd () const { return srv ? srv->get_trace_fd() : -1; }
+int asrv::get_trace_fd () const { return xprt() ? xprt()->getreadfd () : -1; }

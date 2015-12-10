@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: ex8.T 2693 2007-04-08 19:47:33Z max $ */
+/* $Id$ */
 
 #include "tame.h"
 #include "parseopt.h"

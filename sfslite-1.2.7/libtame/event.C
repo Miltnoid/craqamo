@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: event.C 3838 2008-12-16 14:44:57Z max $ */
+/* $Id$ */
 
 #include "tame_event.h"
 #include "tame_closure.h"

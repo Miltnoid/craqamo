@@ -1,4 +1,4 @@
-/* $Id: suidprotect.c 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -22,6 +22,9 @@
  */
 
 #include "sysconf.h"
+
+int suidprotect = 0;
+int execprotect = 0;
 
 int
 suidsafe (void)

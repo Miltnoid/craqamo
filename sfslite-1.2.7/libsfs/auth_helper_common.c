@@ -1,4 +1,4 @@
-/* $Id: auth_helper_common.c 2091 2006-07-17 19:29:32Z max $ */
+/* $Id$ */
 
 /*
  *

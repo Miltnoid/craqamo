@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: blowfish.C 3758 2008-11-13 00:36:00Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -253,7 +253,7 @@ eksblowfish::hashpwd (str pwd, str saltstr)
 
   if (saltstr) {
     char *p;
-    u_int c = strtol (saltstr, &p, 10);
+    u_int c = strtol (saltstr.cstr(), &p, 10);
     if (p != saltstr && c <= 16) {
       cost = c;
       if (*p++ == '$') {

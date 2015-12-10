@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: ex5.T 3276 2008-05-17 20:28:51Z max $ */
+/* $Id$ */
 
 #include "tame.h"
 #include "arpc.h"

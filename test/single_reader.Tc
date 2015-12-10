@@ -169,6 +169,7 @@ connect_to_manager(str h, int port) {
 	//warn << "Getting node list...\n";
 	twait { cli->call(GET_NODE_LIST, NULL, &cur_list, mkevent(e)); }
 	if(e || cur_list.nodes.size() < CHAIN_SIZE) {
+ 		fatal << cur_list.nodes.size();
 		fatal << "Invalid node list!\n";
 	}
 	//warn << " DONE\n";

@@ -1,5 +1,5 @@
 /* -*-fundamental-*- */
-/* $Id: scan.ll 3587 2008-09-12 20:48:31Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -32,11 +32,9 @@
 #define yywrap() 1
 
 str filename = "(stdin)";
-int lineno = 1;
 static void switch_to_state (int i);
 static int std_ret (int i);
 static int tame_ret (int s, int t);
-int get_yy_lineno () { return lineno ;}
 str get_yy_loc ();
 int tame_on = 1;
 int gobble_flag =0;
@@ -48,15 +46,41 @@ int filename_return ();
 %}
 
 %option stack
+%option yylineno
 
 ID	[a-zA-Z_][a-zA-Z_0-9]*
-WSPACE	[ \t]
+WSPACE	[ \t\n]
 SYM	[{}<>;,():*\[\]]
 DNUM 	[+-]?[0-9]+
 XNUM 	[+-]?0x[0-9a-fA-F]
 
-%x FULL_PARSE FN_ENTER VARS_ENTER 
+/* 
+  c++11 lambdas:
+
+ [      ]  ( )   mutable    -> ty       { }
+  ^         ^                            ^
+  SQ     LAM_PARAM                   LAM_BODY  
+  (PL = PRE_LAMBDA)
+
+
+
+According to http://en.cppreference.com/w/cpp/language/lambda#Syntax we are looking for:
+  [ capture ] ( params ) mutable exception attribute -> ret { body } 	(1) 	
+  [ capture ] ( params ) -> ret { body } 	(2) 	
+  [ capture ] ( params ) { body } 	(3) 	
+  [ capture ] { body } (4)
+
+We need to be careful to not parse expression fragments that start like lambdas but aren't
+(e.g. [4]() can be used on a list of callable objects as such:
+v[4]();
+)
+
+*/
+
+%x FULL_PARSE VARS_ENTER 
 %x TAME_BASE C_COMMENT CXX_COMMENT TAME
+%x TAME_SQUARE_BRACKET TAME_LAMBDA_PARAMS
+%x LAMBDA_BODY PAR_EXPR
 %x ID_OR_NUM NUM_ONLY HALF_PARSE PP PP_BASE
 %x JOIN_LIST JOIN_LIST_BASE
 %x TWAIT_ENTER TWAIT_BODY TWAIT_BODY_BASE
@@ -68,8 +92,7 @@ XNUM 	[+-]?0x[0-9a-fA-F]
 
 %%
 
-<FN_ENTER,FULL_PARSE,SIG_PARSE,VARS_ENTER,ID_LIST,ID_OR_NUM,NUM_ONLY,HALF_PARSE,TWAIT_ENTER,JOIN_LIST,JOIN_LIST_BASE,EXPR_LIST,EXPR_LIST_BASE,DEFRET_ENTER>{
-\n		++lineno;
+<FULL_PARSE,SIG_PARSE,VARS_ENTER,ID_LIST,ID_OR_NUM,NUM_ONLY,HALF_PARSE,TWAIT_ENTER,JOIN_LIST,JOIN_LIST_BASE,EXPR_LIST,EXPR_LIST_BASE,DEFRET_ENTER>{
 {WSPACE}+	/*discard*/;
 }
 
@@ -103,6 +126,7 @@ unsigned	return T_UNSIGNED;
 static		return T_STATIC;
 holdvar		return T_HOLDVAR;
 template	{ yy_push_state (TEMPLATE_ENTER); return T_TEMPLATE; }
+decltype	return T_DECLTYPE;
 
 {ID} 		{ return std_ret (T_ID); }
 {DNUM}|{XNUM}	{ return std_ret (T_NUM); }
@@ -111,6 +135,7 @@ template	{ yy_push_state (TEMPLATE_ENTER); return T_TEMPLATE; }
 
 [<>;,:*&]	{ return yytext[0]; }
 "::"		{ return T_2COLON; }
+"..."		{ return T_ELLIPSIS; }
 }
 
 <FULL_PARSE,HALF_PARSE>{
@@ -123,7 +148,6 @@ template	{ yy_push_state (TEMPLATE_ENTER); return T_TEMPLATE; }
 }
 
 <TEMPLATE_ENTER>{
-\n		++lineno;
 {WSPACE}+	/* discard */ ;
 "<"		{ switch_to_state (TEMPLATE_BASE); return yytext[0]; }
 .		{ return yyerror ("unexpected token after 'template'"); }
@@ -134,9 +158,8 @@ template	{ yy_push_state (TEMPLATE_ENTER); return T_TEMPLATE; }
 }
 
 <TEMPLATE_BASE,TEMPLATE>{
-\n		{ ++lineno; return std_ret (T_PASSTHROUGH); }
 [<]		{ yy_push_state (TEMPLATE); return std_ret (T_PASSTHROUGH); }
-[^<>\n]+	{ return std_ret (T_PASSTHROUGH); }
+[^<>]+	{ return std_ret (T_PASSTHROUGH); }
 }
 
 <TEMPLATE>{
@@ -156,21 +179,13 @@ template	{ yy_push_state (TEMPLATE_ENTER); return T_TEMPLATE; }
 				  "environment"); }
 }
 
-<FN_ENTER>{
-[(]		{ yy_push_state (FULL_PARSE); return yytext[0]; }
-[{]		{ switch_to_state (TAME_BASE); return yytext[0]; }
-.		{ return yyerror ("illegal token found in function "
-				  "environment"); }
-}
-
 <PP_BASE>{
 [)\]]		{ yy_pop_state (); return yytext[0]; } 
 }
 
 <PP,PP_BASE>{
-\n			{ ++lineno; }
-[^()\]\n/_]+|[/_]	{ return std_ret (T_PASSTHROUGH); }
-[(]			{ yy_push_state (PP); return std_ret (T_PASSTHROUGH); }
+[^()\[\]/_]+|[/_]	{ return std_ret (T_PASSTHROUGH); }
+[(\[]			{ yy_push_state (PP); return std_ret (T_PASSTHROUGH); }
 }
 
 <PP,PP_BASE,TAME,TAME_BASE>{
@@ -180,7 +195,7 @@ __LOC__         { return loc_return (); }
 }
 
 <PP>{
-[)]		{ yy_pop_state (); return std_ret (T_PASSTHROUGH); }
+[)\]]		{ yy_pop_state (); return std_ret (T_PASSTHROUGH); }
 }
 
 
@@ -229,8 +244,7 @@ __LOC__         { return loc_return (); }
 }
 
 <DEFRET_BASE,DEFRET>{
-\n		{ ++lineno; return std_ret (T_PASSTHROUGH); }
-[^{}\n]+	{ return std_ret (T_PASSTHROUGH); }
+[^{}]+	{ return std_ret (T_PASSTHROUGH); }
 }
 
 <EXPR_LIST_BR_BASE>{
@@ -246,8 +260,7 @@ __LOC__         { return loc_return (); }
 <EXPR_LIST_BR_BASE,EXPR_LIST_BR>{
 \[		   { yy_push_state (EXPR_LIST_BR); 
 	             return std_ret (T_PASSTHROUGH); }
-[^,\[\]/\n]+|"/"   { return std_ret (T_PASSTHROUGH); }
-\n		   { ++lineno; return std_ret (T_PASSTHROUGH); }
+[^,\[\]/]+|"/"   { return std_ret (T_PASSTHROUGH); }
 }
 
 <ID_LIST>{
@@ -272,8 +285,7 @@ __LOC__         { return loc_return (); }
 }
 
 <TWAIT_BODY_BASE,TWAIT_BODY>{
-\n			{ ++lineno; return std_ret (T_PASSTHROUGH); }
-[^ "'gr\t{}\n/]+|[ \tgr/]  { return std_ret (T_PASSTHROUGH); }
+[^ "'gr\t{}/]+|[ \tgr/]  { return std_ret (T_PASSTHROUGH); }
 [{]			{ yy_push_state (TWAIT_BODY); 
 			  return std_ret (T_PASSTHROUGH); }
 goto/[ \t\n]		{ return yyerror ("cannot goto within twait{..}"); }
@@ -292,12 +304,48 @@ return/[ \t\n(;]	{ return yyerror ("cannot return withint twait{..}"); }
 [}]		{ yy_pop_state (); return std_ret (T_PASSTHROUGH); }
 }
 
-<TAME,TAME_BASE>{
-\n		{ yylval.str = yytext; ++lineno; return T_PASSTHROUGH; }
+<LAMBDA_BODY>{
+\"		        { yy_push_state (QUOTE); 
+                          return std_ret (T_PASSTHROUGH); }
+\'		        { yy_push_state (SQUOTE); 
+                          return std_ret (T_PASSTHROUGH); }
+[}]		{ yy_pop_state (); return std_ret (T_PASSTHROUGH); }
+[{]		{ yy_push_state (LAMBDA_BODY); return std_ret (T_PASSTHROUGH); }
+[^{}'"]+ { return std_ret (T_PASSTHROUGH); }
+}
 
-[^ \t{}"'\n/trD_]+|[ \t/trD_] { yylval.str = yytext; return T_PASSTHROUGH; }
+<PAR_EXPR,TAME_LAMBDA_PARAMS>{
+[^()]+ {return std_ret (T_PASSTHROUGH);}
+[(]    {yy_push_state(PAR_EXPR); return std_ret (T_PASSTHROUGH);}
+[)]    {yy_pop_state(); return std_ret (T_PASSTHROUGH);}
+}
+
+<TAME_LAMBDA_PARAMS>{
+")"{WSPACE}*(mutable)?{WSPACE}*"{" {switch_to_state(LAMBDA_BODY); return std_ret (T_PASSTHROUGH);}
+")"{WSPACE}*(mutable)?{WSPACE}*"->"[^{]+"{" {
+   /* [^{] is a gross over approximation but it should work
+      in 99.9% of cases (the only way I could see to have { in a type would be to use decltype) */
+   switch_to_state(LAMBDA_BODY); 
+   return std_ret (T_PASSTHROUGH);
+}
+}
+
+<TAME_SQUARE_BRACKET>{
+"]"{WSPACE}*"{" { switch_to_state(LAMBDA_BODY); return std_ret (T_PASSTHROUGH); }
+"]"{WSPACE}*"(" { switch_to_state(TAME_LAMBDA_PARAMS); return std_ret (T_PASSTHROUGH); }
+"]" { yy_pop_state (); return std_ret (T_PASSTHROUGH); }
+}
+
+<TAME,TAME_BASE,TAME_SQUARE_BRACKET>{
+[^\[\] \t{}"'/trD_]+|[ \t/trD_] {
+       /* t r and D are not matched in the first group because we want to make sure that 
+          tvars, return etc... are caught by their own rules. */
+       yylval.str = yytext; return T_PASSTHROUGH; 
+       }
 
 [{]		{ yylval.str = yytext; yy_push_state (TAME); 
+		  return T_PASSTHROUGH; }
+[\[]    { yylval.str = yytext; yy_push_state (TAME_SQUARE_BRACKET); 
 		  return T_PASSTHROUGH; }
 
 tvars/[ \t\n{/]	    { return tame_ret (VARS_ENTER, T_VARS); }
@@ -335,7 +383,7 @@ twait/[ \t\n({/]           { return tame_ret (TWAIT_ENTER, T_TWAIT); }
 }
 
 
-<TAME,TAME_BASE,INITIAL>{
+<TAME,TAME_BASE,INITIAL,TAME_SQUARE_BRACKET>{
 "//"		{ yy_push_state (CXX_COMMENT); gobble_flag = 0;
 	          return std_ret (T_PASSTHROUGH); }
 "/*"		{ yy_push_state (C_COMMENT); gobble_flag = 0;
@@ -344,14 +392,13 @@ twait/[ \t\n({/]           { return tame_ret (TWAIT_ENTER, T_TWAIT); }
 
 <INITIAL>{
 tamed/[ \t\n/]   { return tame_ret (SIG_PARSE, T_TAMED); }
-[^t\n"'/]+|[t/]   { yylval.str = yytext; return T_PASSTHROUGH ; }
-\n		 { ++lineno; yylval.str = yytext; return T_PASSTHROUGH; }
+[^t"'/]+|[t/]   { yylval.str = yytext; return T_PASSTHROUGH ; }
 \"		 { yy_push_state (QUOTE); return std_ret (T_PASSTHROUGH); }
 \'		 { yy_push_state (SQUOTE); return std_ret (T_PASSTHROUGH); }
 }
 
 <CXX_COMMENT>{
-\n		{ ++lineno; yy_pop_state (); GOBBLE_RET; }
+\n		{ yy_pop_state (); GOBBLE_RET; }
 "//"		{ yy_push_state (CXX_COMMENT); gobble_flag = 0;
 	          return std_ret (T_PASSTHROUGH); }
 "/*"		{ yy_push_state (C_COMMENT); gobble_flag = 0;
@@ -362,21 +409,19 @@ TAME_ON		{ tame_on = 1; GOBBLE_RET; }
 }
 
 <RETURN_PARAMS>{
-\n			{ ++lineno; return std_ret (T_PASSTHROUGH); }
 ;			{ yy_pop_state (); return yytext[0]; }
-[^\n;/]+|[/]		{ return std_ret (T_PASSTHROUGH); }
+[^;/]+|[/]		{ return std_ret (T_PASSTHROUGH); }
 }
 
 <C_COMMENT>{
 TAME_OFF	{ tame_on = 0; GOBBLE_RET; }
 TAME_ON		{ tame_on = 1; GOBBLE_RET; }
 "*/"		{ yy_pop_state (); GOBBLE_RET; }
-[^*\nT]+|[*T]	{ GOBBLE_RET; }
-\n		{ ++lineno; yylval.str = yytext; GOBBLE_RET; }
+[^*T]+|[*T]	{ GOBBLE_RET; }
 }
 
 
-<FULL_PARSE,SIG_PARSE,FN_ENTER,VARS_ENTER,HALF_PARSE,PP,PP_BASE,EXPR_LIST,EXPR_LIST_BASE,ID_LIST,RETURN_PARAMS,EXPR_LIST_BR,EXPR_LIST_BR_BASE,DEFRET_ENTER,TWAIT_BODY,TWAIT_BODY_BASE>{
+<FULL_PARSE,SIG_PARSE,VARS_ENTER,HALF_PARSE,PP,PP_BASE,EXPR_LIST,EXPR_LIST_BASE,ID_LIST,RETURN_PARAMS,EXPR_LIST_BR,EXPR_LIST_BR_BASE,DEFRET_ENTER,TWAIT_BODY,TWAIT_BODY_BASE>{
 
 "//"		{ gobble_flag = 1; yy_push_state (CXX_COMMENT); }
 "/*"		{ gobble_flag = 1; yy_push_state (C_COMMENT); }
@@ -395,14 +440,14 @@ switch_to_state (int s)
 int
 yyerror (str msg)
 {
-  warnx << filename << ":" << lineno << ": " << msg << "\n";
+  warnx << filename << ":" << yyget_lineno() << ": " << msg << "\n";
   exit (1);
 }
 
 int
 yywarn (str msg)
 {
-  warnx << filename << ":" << lineno << ": Warning: " << msg << "\n";
+  warnx << filename << ":" << yyget_lineno() << ": Warning: " << msg << "\n";
   return 0;
 }
 
@@ -435,7 +480,7 @@ str
 get_yy_loc ()
 {
    strbuf b (filename);
-   b << ":" << lineno;
+   b << ":" << yyget_lineno()-1;
    return b;
 }
 
@@ -443,8 +488,8 @@ int
 lineno_return ()
 {
    strbuf b; 
-   b << lineno; 
-   yylval.str = lstr (lineno, str (b));
+   b << yyget_lineno(); 
+   yylval.str = lstr (yyget_lineno(), str (b));
    return T_PASSTHROUGH;
 }
 
@@ -453,14 +498,14 @@ filename_return ()
 {
   strbuf b; 
   b << "\"" << filename << "\"";
-  yylval.str = lstr (lineno, str (b));
+  yylval.str = lstr (yyget_lineno(), str (b));
   return T_PASSTHROUGH; 
 }
 
 int
 loc_return ()
 {
-   strbuf b ("\"%s:%d\"", filename.cstr (), lineno);
-  yylval.str = lstr (lineno, str (b));
+   strbuf b ("\"%s:%d\"", filename.cstr (), yyget_lineno());
+  yylval.str = lstr (yyget_lineno(), str (b));
   return T_PASSTHROUGH; 
 }

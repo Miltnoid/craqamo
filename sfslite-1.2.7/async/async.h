@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: async.h 5102 2010-01-29 21:48:04Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -29,10 +29,12 @@
 #include "init.h"
 #include "litetime.h"
 #include "sfs_bundle.h"
+#include "sfs_const.h"
 
 /* core.C */
 struct timecb_t;
 struct lazycb_t;
+struct yieldcb_t;
 INIT (async_init);
 void amain () __attribute__ ((noreturn));
 void acheck ();
@@ -44,6 +46,8 @@ timecb_t *delaycb (time_t sec, u_int32_t nsec, cbv cb);
 void timecb_remove (timecb_t *);
 lazycb_t *lazycb (time_t min_interval, cbv cb);
 void lazycb_remove (lazycb_t *lazy);
+yieldcb_t *yieldcb (cbv cb);
+void yieldcb_remove (yieldcb_t *yieldcb_t);
 
 #define fdcb(f,s,c) _fdcb(f,s,c,__FILE__,__LINE__)
 
@@ -82,6 +86,7 @@ tcpconnect_t *tcpconnect_srv (str hostname, str service, u_int16_t defport,
 			      ptr<srvlist> *srvlp = NULL, str *np = NULL);
 tcpconnect_t *tcpconnect_srv_retry (ref<srvlist> srvl, cbi cb, str *np = NULL);
 void tcpconnect_cancel (tcpconnect_t *tc);
+extern bool tcpconnect_debug;
 
 /* ident.C */
 void identptr (int fd, callback<void, str, ptr<hostent>, int>::ref);
@@ -101,8 +106,9 @@ void ifchgcb_remove (ifchgcb_t *chg);
 
 #define SFSLITE_VERSION_MAJOR 1
 #define SFSLITE_VERSION_MINOR 2
-#define SFSLITE_VERSION_PATCHLEVEL 8
-#define SFSLITE_VERSION_PRE 102
+#define SFSLITE_VERSION_PATCHLEVEL 9
+#define SFSLITE_VERSION_PRE 115
+
 //
 // VERSION_PRE < 100 means pre1, pre2, etc. releases
 // VERSION_PRE = 100 means the real release
@@ -119,6 +125,6 @@ void ifchgcb_remove (ifchgcb_t *chg);
                    SFSLITE_VERSION_PATCHLEVEL, \
                    SFSLITE_VERSION_PRE))
 
-#define SFSLITE_PATCHLEVEL_STR "1.2.8.2"
+#define SFSLITE_PATCHLEVEL_STR "1.2.9.15"
 
 #endif /* !_ASYNC_ASYNC_H_ */

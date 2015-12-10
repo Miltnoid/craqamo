@@ -1,4 +1,4 @@
-/* $Id: blowfish_data.h 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 /* This file contains the initialization data found in the blowfish
  * encryption article described in the 1994 april issue of Dr. Dobb's
  * Journal.  In the original blowfish.dat file there was 5006 bytes.

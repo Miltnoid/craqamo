@@ -1,4 +1,4 @@
-/* $Id: pm.C 3838 2008-12-16 14:44:57Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -69,7 +69,7 @@
 #include "pm.h"
 #include "poly.h"
 
-static const char   match[4] = { 0xFF, 0xFF, 0xFF, 0xFF };
+static const char   match[4] = { (char) 0xFF, (char) 0xFF, (char) 0xFF, (char) 0xFF };
 static const size_t matchlen = sizeof (char) * 4;
 static const bigint one = 1;
 

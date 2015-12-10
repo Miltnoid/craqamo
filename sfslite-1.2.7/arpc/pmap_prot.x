@@ -1,4 +1,4 @@
-/* $Id: pmap_prot.x 1693 2006-04-28 23:17:35Z max $ */
+/* $Id$ */
 
 /* This is from RFC 1057 */
 

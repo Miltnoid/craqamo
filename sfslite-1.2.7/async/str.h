@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: str.h 5081 2010-01-10 00:48:17Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -25,6 +25,17 @@
 
 #ifndef _ASYNC_STR_H_
 #define _ASYNC_STR_H_ 1
+
+#ifndef DEPRECATED
+#ifdef __clang__
+// For some reason we are compiling with the deprecated flag turned off
+// so we use unavailable instead.
+#pragma clang diagnostic error "-Wdeprecated-declarations"
+#define DEPRECATED(_msg)  __attribute__((deprecated(_msg)))
+#else
+#define DEPRECATED(_msg)
+#endif // __clang__
+#endif // DEPRECATED
 
 #include "suio++.h"
 #include "keyfunc.h"
@@ -53,6 +64,8 @@ public:
 #endif /* gcc2 */
 
   char *dat () { return (char *) this + sizeof (*this); }
+  const char *dat () const { return (char *) this + sizeof (*this); }
+
   static strobj *alloc (size_t n)
     { return new (opnew (n + sizeof (strobj))) strobj; }
 };
@@ -64,6 +77,10 @@ public:
   strobjptr () : p (NULL) {}
   strobjptr (strobj *pp) : p (pp) { if (p) p->refcount_inc (); }
   strobjptr (const strobjptr &b) : p (b.p) { if (p) p->refcount_inc (); }
+  void swap(strobjptr &b) { strobj *old = p; p = b.p; b.p = old; }
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  strobjptr(strobjptr&& src) : strobjptr(src) { } 
+#endif
   ~strobjptr () { if (p) p->refcount_dec (); }
 
   strobjptr &operator= (strobj *pp) {
@@ -84,6 +101,7 @@ public:
 };
 
 class str {
+protected:
   // friend const strbuf &strbuf_cat (const strbuf &, const str &);
   friend void suio_print (suio *, const str &);
   friend class str_init;
@@ -104,6 +122,8 @@ public:
   str (const char *buf, size_t len) : b (buf2strobj (buf, len)) {}
   str (const iovec *iov, int cnt) { setiov (iov, cnt); }
   str (mstr &);
+
+  void swap(str &s) { b.swap(s.b); }
 
   str &operator= (const str &s) { b = s.b; return *this; }
   str &operator= (const char *p) {
@@ -127,7 +147,11 @@ public:
 
   size_t len () const { return b->len; }
   const char *cstr () const { return b ? b->dat () : NULL; }
-  operator const char *() const { return cstr (); }
+  operator const char *() const
+  DEPRECATED("use cstr instead.")
+  {
+    return cstr ();
+  }
   char operator[] (ptrdiff_t n) const {
 #ifdef CHECK_BOUNDS
     assert (size_t (n) <= b->len);
@@ -145,11 +169,28 @@ public:
     const char *e = s + len ();
     while (*s == *p)
       if (!*p++)
-	return e - s;
+          return e - s;
       else if (s++ == e)
-	return -1;
+          return -1;
     return (u_char) *s - (u_char) *p;
   }
+
+  // Setting base == 0 implies strtoull will auto-detect based on the string's
+  // prefix. Converting to double will always auto-detect the number base.
+  //
+  // Base prefixes:
+  //     010    Octal
+  //      10    Decimal
+  //    0x10    Hexadecimal
+
+  bool to_int32(int32_t* out, int base = 10) const;
+  bool to_int64(int64_t* out, int base = 10) const;
+  bool to_uint32(uint32_t* out, int base = 10) const;
+  bool to_uint64(uint64_t* out, int base = 10) const;
+  bool to_double(double* out) const;
+
+  bool operator! () const { return !b; }
+  explicit operator bool() const { return b; }
 
   bool operator== (const str &s) const
     { return len () == s.len () && !memcmp (cstr (), s.cstr (), len ()); }
@@ -313,6 +354,7 @@ public:
 
   void clear () { tosuio ()->clear (); }
   size_t len () const { return tosuio ()->resid (); }
+  void hold_onto (str s) { tosuio()->hold_onto (s); }
 
   // copy the bytes from the given buffer into the strbuf,
   // works for even binary data (unlike cat(foo, true) above).
@@ -473,6 +515,14 @@ strbuf_cat(const strbuf& b, const double& d)
   char x[128];
   snprintf (x, 128, "%f", d);
   return strbuf_cat (b, x);
+}
+
+template <typename T>
+inline const strbuf&
+strbuf_cat(const strbuf& b, T const *p)
+{
+  b.fmt("%p", p);
+  return b;
 }
 
 #endif /* !_ASYNC_STR_H_ */

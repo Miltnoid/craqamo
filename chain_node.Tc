@@ -1,4 +1,5 @@
 #include "libconfig.h++"
+#include <sstream>
 #include "logging.h"
 #include <iostream>
 #include <string>
@@ -14,6 +15,7 @@
 #include "parseopt.h"
 #include "ID_Value.h"
 #include "Node.h"
+#include <sys/time.h>
 #include "MemStorage.h"
 #include "HttpStorage.h"
 #include "Storage.h"
@@ -48,10 +50,10 @@ struct chain_meta {
 };
 
 struct key_meta {
-	unsigned int committed;
-	unsigned int max_pending;
-	map<int, blob> pending_list;
-	map<int, deque<svccb *> > write_reqs;
+	timeval committed;
+	timeval max_pending;
+	map<timeval, blob> pending_list;
+	map<timeval, deque<svccb *> > write_reqs;
 	bool is_head;
 	bool is_tail;
 	ID_Value chain_id;
@@ -105,6 +107,37 @@ map<ID_Value, chain_meta> chain_meta_list;
 map<string, map<ID_Value, Node> > ext_rings;
 
 bool update_running = false;
+
+bool operator<(const timeval &tv1, const timeval &tv2) {
+  return timercmp(&tv1, &tv2, <);
+}
+
+timeval from_rpc_mytimeval(rpc_mytimeval mtv) {
+  timeval tv;
+  tv.tv_sec = mtv.mtv_sec;
+  tv.tv_usec = mtv.mtv_usec;
+  return tv;
+}
+
+rpc_mytimeval to_rpc_mytimeval(timeval tv) {
+  rpc_mytimeval mtv;
+  mtv.mtv_sec = tv.tv_sec;
+  mtv.mtv_usec = tv.tv_usec;
+  return mtv;
+}
+
+string timeval_to_string(timeval tv) {
+  stringstream ss;
+  ss << "sec: " << tv.tv_sec << " usec: " << tv.tv_usec;
+  return ss.str();
+}
+
+timeval empty_timeval() {
+  timeval tv;
+  tv.tv_sec = 0;
+  tv.tv_usec = 0;
+  return tv;
+}
 
 void dont_care(bool x) {}
 
@@ -389,8 +422,8 @@ tamed void process_query_obj_ver(svccb * sbp) {
 		return;
 	}
 
-	repl.hist = (it->second).committed;
-	repl.pend = (it->second).max_pending;
+	repl.hist = to_rpc_mytimeval((it->second).committed);
+	repl.pend = to_rpc_mytimeval((it->second).max_pending);
 	sbp->replyref(repl);
 }
 
@@ -406,7 +439,7 @@ tamed void process_tail_read(svccb * sbp) {
 		clnt_stat e;
 		int fd;
 		query_obj_ver_ret ret;
-		map<int, blob>::iterator kit;
+		map<timeval, blob>::iterator kit;
 		blob to_rep;
 		ID_Value chain_id;
 		ptr<chain_meta> chain_info;
@@ -426,7 +459,7 @@ tamed void process_tail_read(svccb * sbp) {
 		return;
 	}
 
-	if(it->second.committed == it->second.max_pending) {
+	if(!timercmp(&(it->second.committed), &(it->second.max_pending), !=)) {
 		LOG_WARN << "Clean READ " << id.toString().c_str() << "\n";
 		twait { storage->get(id, mkevent(repl)); }
 		sbp->replyref(*repl);
@@ -463,14 +496,14 @@ tamed void process_tail_read(svccb * sbp) {
 			}
 
 			//Got an ACK between call
-			if(it->second.committed == it->second.max_pending) {
+			if(!timercmp(&it->second.committed, &it->second.max_pending, !=)) {
 				LOG_WARN << "Clean READ " << id.toString().c_str() << "\n";
 				twait { storage->get(id, mkevent(repl)); }
 				sbp->replyref(*repl);
 				return;
 			}
 			//See if we have the version the tail would return
-			kit = it->second.pending_list.find(ret.hist);
+			kit = it->second.pending_list.find(from_rpc_mytimeval(ret.hist));
 			if(kit == it->second.pending_list.end()) {
 				sbp->replyref(NULL);
 				return;
@@ -497,7 +530,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		clnt_stat e;
 		int fd;
 		query_obj_ver_ret ret;
-		map<int, blob>::iterator kit;
+		map<timeval, blob>::iterator kit;
 		tail_read_ex_ret to_rep;
 		ID_Value chain_id;
 		ptr<chain_meta> chain_info;
@@ -528,7 +561,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		return;
 	}
 
-	if(!parg.dirty && it->second.committed == it->second.max_pending) {
+	if(!parg.dirty && !timercmp(&it->second.committed, &it->second.max_pending, !=)) {
 		LOG_WARN << "Clean READ " << id.toString().c_str() << "\n";
 		twait { storage->get(id, mkevent(repl)); }
 		LOG_INFO << "after storage get";
@@ -536,7 +569,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		LOG_INFO << "1";
 		to_rep.dirty = false;
 		LOG_INFO << "2";
-		to_rep.ver = it->second.committed;
+		to_rep.ver = to_rpc_mytimeval(it->second.committed);
 		LOG_INFO << "before replyref";
 		sbp->replyref(to_rep);
 
@@ -613,7 +646,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 			}
 
 			//Got an ACK between call
-			if(it->second.committed == it->second.max_pending) {
+			if(!timercmp(&it->second.committed, &it->second.max_pending, !=)) {
 				LOG_WARN << "Clean READ " << id.toString().c_str() << "\n";
 				twait { storage->get(id, mkevent(repl)); }
 				LOG_INFO << "after storage get 2";
@@ -621,7 +654,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 				LOG_INFO << "3";
 				to_rep.dirty = true;
 				LOG_INFO << "4";
-				to_rep.ver = it->second.committed;
+				to_rep.ver = to_rpc_mytimeval(it->second.committed);
 				LOG_INFO << "before replyref 2";
 				sbp->replyref(to_rep);
 
@@ -632,7 +665,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 				return;
 			}
 			//See if we have the version the tail would return
-			kit = it->second.pending_list.find(ret.hist);
+			kit = it->second.pending_list.find(from_rpc_mytimeval(ret.hist));
 			if(kit == it->second.pending_list.end()) {
 				kit = it->second.pending_list.find(it->second.max_pending); //really wrong
 				if(kit == it->second.pending_list.end()) {
@@ -716,22 +749,24 @@ tamed void process_head_write(svccb * sbp) {
 		return;
 	} else if(it == key_meta_list.end()) {
 		//Create new key if this is the first
-		wrt.committed = 0;
-		wrt.max_pending = 1;
+		wrt.committed = empty_timeval();
+		timeval max_pending;
+		gettimeofday(&max_pending, NULL);
+		wrt.max_pending = max_pending;
 		if(chain_info->chain_size == 1) {
 			wrt.is_tail = true;
 		} else {
 			wrt.is_tail = false;
 		}
 		wrt.is_head = true;
-		wrt.pending_list[1] = parg.data;
-		wrt.write_reqs[1].push_back(sbp);
+		wrt.pending_list[max_pending] = parg.data;
+		wrt.write_reqs[max_pending].push_back(sbp);
 		wrt.chain_id = chain_id;
 		key_meta_list[id] = wrt;
 	} else {
 		//Update key if this is not the first
 		wrt = it->second;
-		wrt.max_pending++;
+		gettimeofday(&wrt.max_pending, NULL);
 		wrt.pending_list[wrt.max_pending] = parg.data;
 		wrt.write_reqs[wrt.max_pending].push_back(sbp);
 		wrt.chain_id = chain_id;
@@ -785,14 +820,16 @@ tamed void process_test_and_set(svccb * sbp) {
 	}
 
 	//If requested version is not the latest committed version, just reject
-	if(parg.ver != (it->second).committed) {
+        timeval temptimeval;
+	temptimeval = from_rpc_mytimeval(parg.ver);
+	if(timercmp(&temptimeval, &(it->second).committed, !=)) {
 		sbp->replyref(false);
 		return;
 	}
 
 	//Turn the test-and-set into a normal write and propagate
 	wrt = it->second;
-	wrt.max_pending++;
+	gettimeofday(&wrt.max_pending, NULL);
 	wrt.pending_list[wrt.max_pending] = parg.data;
 	wrt.write_reqs[wrt.max_pending].push_back(sbp);
 	wrt.chain_id = chain_id;
@@ -846,16 +883,18 @@ tamed void process_propagate(svccb * sbp) {
 	kit = key_meta_list.find(id);
 
 	//Reply true if we already have a higher or equal version
+	timeval temppargver;
+	temppargver = from_rpc_mytimeval(parg.ver);
 	if(kit != key_meta_list.end() &&
-		((kit->second.max_pending >= parg.ver && parg.committed == false) ||
-		 (kit->second.committed >= parg.ver && parg.committed == true))) {
+		((timercmp(&kit->second.max_pending, &temppargver, >=) && parg.committed == false) ||
+		 (timercmp(&kit->second.committed, &temppargver, >=) && parg.committed == true))) {
 		 	LOG_WARN << "Already higher\n";
 			sbp->replyref(true);
 			return;
 	}
 
-	wrt.committed = 0;
-	wrt.max_pending = 0;
+	wrt.committed = empty_timeval();
+	wrt.max_pending = empty_timeval();
 	wrt.is_tail = false;
 	wrt.is_head = false;
 	wrt.chain_id = chain_id;
@@ -890,18 +929,20 @@ tamed void process_propagate(svccb * sbp) {
 	if(parg.committed == true) {
 		//TODO: set storage based on chain and key not just key!
 		twait { storage->set(id, &parg.data, mkevent(set_succ)); }
-		wrt.committed = parg.ver;
-		if(wrt.max_pending < wrt.committed)
+		wrt.committed = from_rpc_mytimeval(parg.ver);
+		if(timercmp(&wrt.max_pending, &wrt.committed, <))
 			wrt.max_pending = wrt.committed;
 		wrt.pending_list[wrt.max_pending] = parg.data;
 	} else {
-		wrt.max_pending = parg.ver;
-		wrt.pending_list[parg.ver] = parg.data;
+		wrt.max_pending = from_rpc_mytimeval(parg.ver);
+		wrt.pending_list[from_rpc_mytimeval(parg.ver)] = parg.data;
 	}
 	if(wrt.is_tail &&
 			chain_info->data_centers[chain_info->data_centers.size()-1] == datacenter) {
 		wrt.committed = wrt.max_pending;
+		LOG_WARN << "I think I found it";
 		twait { storage->set(id, &wrt.pending_list[wrt.max_pending], mkevent(set_succ)); }
+		LOG_WARN << "This potentially won't get hit!";
 		wrt.pending_list.clear();
 	}
 	key_meta_list[id] = wrt;
@@ -961,15 +1002,17 @@ tamed void process_back_propagate(svccb * sbp) {
 
 	kit = key_meta_list.find(id);
 	//Reply true if we already have a higher or equal version
+	timeval pargver;
+	pargver = from_rpc_mytimeval(parg.ver);
 	if(kit != key_meta_list.end() &&
-		((kit->second.max_pending >= parg.ver && parg.committed == false) ||
-		 (kit->second.committed >= parg.ver && parg.committed == true))) {
+		((timercmp(&kit->second.max_pending, &pargver, >=) && parg.committed == false) ||
+		 (timercmp(&kit->second.committed, &pargver, >=) && parg.committed == true))) {
 			sbp->replyref(true);
 			return;
 	}
 
-	wrt.committed = 0;
-	wrt.max_pending = 0;
+	wrt.committed = empty_timeval();
+	wrt.max_pending = empty_timeval();
 	wrt.is_tail = false;
 	wrt.is_head = false;
 
@@ -999,13 +1042,13 @@ tamed void process_back_propagate(svccb * sbp) {
 	//Update meta key
 	if(parg.committed == true) {
 		twait { storage->set(id, &parg.data, mkevent(set_succ)); }
-		wrt.committed = parg.ver;
-		if(wrt.max_pending < wrt.committed)
+		wrt.committed = from_rpc_mytimeval(parg.ver);
+		if(timercmp(&wrt.max_pending, &wrt.committed, <))
 			wrt.max_pending = wrt.committed;
 		wrt.pending_list[wrt.max_pending] = parg.data;
 	} else {
-		wrt.max_pending = parg.ver;
-		wrt.pending_list[parg.ver] = parg.data;
+		wrt.max_pending = from_rpc_mytimeval(parg.ver);
+		wrt.pending_list[from_rpc_mytimeval(parg.ver)] = parg.data;
 	}
 	key_meta_list[id] = wrt;
 
@@ -1022,8 +1065,8 @@ tamed void process_ack(svccb * sbp) {
 		ID_Value id;
 		ID_Value chain_id;
 		key_iter kit;
-		map<int, blob>::iterator pendit;
-		map<int, deque<svccb *> >::iterator it;
+		map<timeval, blob>::iterator pendit;
+		map<timeval, deque<svccb *> >::iterator it;
 		deque<svccb *>::iterator repls;
 		bool ret_val;
 		bool set_succ;
@@ -1045,13 +1088,15 @@ tamed void process_ack(svccb * sbp) {
 	}
 
 	//If we have higher or equal version committed, just reply true
-	if(kit->second.committed >= parg.ver  ) {
+	timeval pargver;
+	pargver = from_rpc_mytimeval(parg.ver);
+	if(timercmp(&kit->second.committed, &pargver, >=)) {
 		sbp->replyref(true);
 		return;
 	}
 
 	//Try and find the acked version so we can commit and error if not found
-	pendit = kit->second.pending_list.find(parg.ver);
+	pendit = kit->second.pending_list.find(from_rpc_mytimeval(parg.ver));
 	if(pendit == kit->second.pending_list.end()) {
 		sbp->replyref(false);
 		return;
@@ -1076,21 +1121,23 @@ tamed void process_ack(svccb * sbp) {
 		}
 		it->second.clear();
 		kit->second.write_reqs.erase(it++);
-		if(it->first > parg.ver) break;
+		timeval pargver;
+		pargver = from_rpc_mytimeval(parg.ver);
+		if(timercmp(&it->first, &pargver, >)) break;
 	}
 
 	//Update committed version number
-	kit->second.committed = parg.ver;
+	kit->second.committed = from_rpc_mytimeval(parg.ver);
 
 	LOG_WARN << "directly before pending list erase";
 
 	//Erase all pending versions less than one just committed
-	pendit = kit->second.pending_list.find(parg.ver);
+	pendit = kit->second.pending_list.find(from_rpc_mytimeval(parg.ver));
 	if(pendit != kit->second.pending_list.end())
 		kit->second.pending_list.erase(kit->second.pending_list.begin(), pendit);
 
 	LOG_WARN << "Updated key " << id.toString().c_str() << " to "
-		 << kit->second.committed << "/" << kit->second.max_pending << "\n";
+		 << timeval_to_string(kit->second.committed) << "/" << timeval_to_string(kit->second.max_pending) << "\n";
 
 	sbp->replyref(true);
 	//if(!kit->second.is_head) {
@@ -1148,7 +1195,7 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 		key_iter it;
 		ring_iter succs;
 		Node succ;
-		map<int, blob>::iterator dt_it;
+		map<timeval, blob>::iterator dt_it;
 		propagate_arg arg;
 		ptr<aclnt> cli;
 		clnt_stat e;
@@ -1199,7 +1246,7 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 		if(send_committed) {
 			arg.id = id.get_rpc_id();
 			arg.chain = chain_id.get_rpc_id();
-			arg.ver = it->second.committed;
+			arg.ver = to_rpc_mytimeval(it->second.committed);
 			twait { storage->get(id, mkevent(get_result)); }
 			arg.data = *get_result;
 			arg.committed = true;
@@ -1211,7 +1258,7 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 			}
 			arg.id = id.get_rpc_id();
 			arg.chain = chain_id.get_rpc_id();
-			arg.ver = it->second.max_pending;
+			arg.ver = to_rpc_mytimeval(it->second.max_pending);
 			arg.data = dt_it->second;
 			arg.committed = false;
 		}
@@ -1222,7 +1269,7 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 		if( fd<0 ) {
 			report_bad_node(succ);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1232,12 +1279,12 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 			LOG_WARN << "Error propagating key\n";
 			report_bad_node(succ);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		} else if(!rpc_ret) {
 			LOG_WARN << "Bad return value from propogating key\n";
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1252,7 +1299,7 @@ tamed void back_propagate(ID_Value chain_id, ID_Value id, bool send_committed, c
 	tvars {
 		key_iter it;
 		ring_iter pred;
-		map<int, blob>::iterator dt_it;
+		map<timeval, blob>::iterator dt_it;
 		propagate_arg arg;
 		ptr<aclnt> cli;
 		clnt_stat e;
@@ -1282,14 +1329,16 @@ tamed void back_propagate(ID_Value chain_id, ID_Value id, bool send_committed, c
 		ring_decr(&pred);
 
 		if(send_committed) {
-			if(it->second.committed <= 0) {
+			timeval emptytime;
+			emptytime = empty_timeval();
+			if(timercmp(&it->second.committed, &emptytime, <=)) {
 				//There is no committed version, so die
 				TRIGGER(cb, true);
 				return;
 			}
 			arg.chain = chain_id.get_rpc_id();
 			arg.id = id.get_rpc_id();
-			arg.ver = it->second.committed;
+			arg.ver = to_rpc_mytimeval(it->second.committed);
 			twait { storage->get(id, mkevent(get_result)); }
 			st_val = get_result;
 			if(!st_val) {
@@ -1305,7 +1354,7 @@ tamed void back_propagate(ID_Value chain_id, ID_Value id, bool send_committed, c
 			}
 			arg.chain = chain_id.get_rpc_id();
 			arg.id = id.get_rpc_id();
-			arg.ver = it->second.max_pending;
+			arg.ver = to_rpc_mytimeval(it->second.max_pending);
 			arg.data = dt_it->second;
 			arg.committed = false;
 		}
@@ -1316,7 +1365,7 @@ tamed void back_propagate(ID_Value chain_id, ID_Value id, bool send_committed, c
 		if( fd<0 ) {
 			report_bad_node(pred->second);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1324,7 +1373,7 @@ tamed void back_propagate(ID_Value chain_id, ID_Value id, bool send_committed, c
 		if(e || !rpc_ret) {
 			report_bad_node(pred->second);
 			backoff++;
-			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent ()); }
+			twait { delaycb (0, (u_int32_t) (.5 * 1000000000 * backoff), mkevent_o ()); }
 			continue;
 		}
 
@@ -1387,7 +1436,7 @@ tamed void ack(ID_Value chain_id, ID_Value id, cbb cb) {
 
 		arg.chain = chain_id.get_rpc_id();
 		arg.id = id.get_rpc_id();
-		arg.ver = it->second.committed;
+		arg.ver = to_rpc_mytimeval(it->second.committed);
 
 		LOG_WARN << "ACKing ID " << id.toString().c_str() << " to neighbor " << pred.toString().c_str() << "\n";
 		twait { get_rpc_cli (pred.getIp().c_str(), pred.getPort(), &cli, &chain_node_1, mkevent(fd)); }
@@ -1395,7 +1444,7 @@ tamed void ack(ID_Value chain_id, ID_Value id, cbb cb) {
 		if( fd<0 ) {
 			report_bad_node(pred);
 			backoff++;
-			twait { delaycb (0, 50 * 1000000 * backoff, mkevent ()); }
+			twait { delaycb (0, 50 * 1000000 * backoff, mkevent_o ()); }
 			continue;
 		}
 
@@ -1403,12 +1452,12 @@ tamed void ack(ID_Value chain_id, ID_Value id, cbb cb) {
 		if(e) {
 			report_bad_node(pred);
 			backoff++;
-			twait { delaycb (0, 50 * 1000000 * backoff, mkevent ()); }
+			twait { delaycb (0, 50 * 1000000 * backoff, mkevent_o ()); }
 			continue;
 		} else if(!rpc_ret) {
 			continue;
 			backoff++;
-			twait { delaycb (0, 50 * 1000000 * backoff, mkevent ()); }
+			twait { delaycb (0, 50 * 1000000 * backoff, mkevent_o ()); }
 		}
 
 	}

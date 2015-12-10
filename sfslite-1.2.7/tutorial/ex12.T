@@ -1,9 +1,8 @@
 // -*-c++-*-
-/* $Id: ex12.T 2548 2007-03-05 02:02:48Z max $ */
+/* $Id$ */
 
 #include "tame.h"
 #include "parseopt.h"
-#include "ex_prot.h"
 
 //
 // A test case to make sure that biggest callbacks work.

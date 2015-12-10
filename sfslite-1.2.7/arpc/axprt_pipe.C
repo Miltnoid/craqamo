@@ -1,4 +1,4 @@
-/* $Id: axprt_pipe.C 4728 2009-10-16 20:08:40Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -39,7 +39,8 @@ axprt_pipe::wrsync ()
 axprt_pipe::axprt_pipe (int rfd, int wfd, size_t ps, size_t bs)
   : axprt (true, true), destroyed (false), ingetpkt (false), pktsize (ps),
     bufsize (bs ? bs : pktsize + 4), fdread (rfd), fdwrite (wfd), cb (NULL),
-    pktlen (0), wcbset (false), _foosp (false), raw_bytes_sent (0)
+    pktlen (0), wcbset (false), _foosp (false), raw_bytes_sent (0),
+    _last_suio_clear (sfs_get_timenow ())
 {
   make_async (fdread);
   make_async (fdwrite);
@@ -124,7 +125,10 @@ axprt_pipe::fail ()
   if (fdwrite >= 0) {
     fdcb (fdwrite, selwrite, NULL);
     wcbset = false;
-    close (fdwrite);
+    // No need to close it twice if it's the same guy.
+    if (fdwrite != fdread) {
+      close (fdwrite);
+    }
   }
   fdread = fdwrite = -1;
   if (!destroyed) {
@@ -230,7 +234,7 @@ axprt_pipe::output ()
   do {
     while (!syncpts.empty () && out->iovno () >= syncpts.front ())
       syncpts.pop_front ();
-    cnt = syncpts.empty () ? (size_t) -1
+    cnt = syncpts.empty () ? -1
       : int (syncpts.front () - out->iovno ());
   } while ((n = dowritev (cnt)) > 0);
 
@@ -238,11 +242,22 @@ axprt_pipe::output ()
     fail ();
   else if (out->resid () && !wcbset) {
     wcbset = true;
+
     fdcb (fdwrite, selwrite, wrap (this, &axprt_pipe::output));
   }
   else if (!out->resid () && wcbset) {
     wcbset = false;
     fdcb (fdwrite, selwrite, NULL);
+  }
+
+  if (!out->resid () && sfs_const::axprt_suio_clear_interval) {
+    //
+    // Give back memory eagerly 
+    //
+    // XXX this is somewhat of a hack, but i don't want to rename
+    // symbols just yet --- I want to see if this does the trick....
+    //
+    out->clear ();
   }
 }
 

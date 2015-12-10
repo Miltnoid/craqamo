@@ -1,4 +1,4 @@
-/* $Id: parseopt.C 3146 2007-12-20 17:44:02Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -23,6 +23,7 @@
 
 #include "amisc.h"
 #include "parseopt.h"
+#include "rxx.h"
 
 static inline int
 isspc (char c)
@@ -151,7 +152,7 @@ parseargs::error (str msg)
 parseargs::parseargs (str file, int fd)
   : buf (NULL), lim (buf), p (buf), filename (file), lineno (0)
 {
-  if (fd == -1 && (fd = open (file, O_RDONLY, 0)) < 0)
+  if (fd == -1 && (fd = open (file.cstr(), O_RDONLY, 0)) < 0)
     error (strbuf ("%m"));
 
   // XXX - should fstat fd for initial size, to optimize for common case
@@ -266,6 +267,17 @@ conftab_bool::convert (const vec<str> &v, const str &l, bool *e)
     err = true;
 
   return (!err);
+}
+
+bool conftab_double::convert (const vec<str> &v, const str &cf, bool *e)
+{
+  if (!count_args (v, 2))
+    return false;
+
+  char *endptr;
+  tmp = strtod(v[1].cstr(), &endptr);
+
+  return (endptr != v[1].cstr());
 }
 
 bool
@@ -404,4 +416,17 @@ conftab::run (const str &file, u_int opts, int fd, status_t *sp)
   }
 
   return !(errors || unknown);
+}
+
+void
+conftab_str::dump (strbuf &b) const
+{
+  str val;
+
+  if (!dest && cnfcb && tmp.size ()) { val = join(" ", tmp); } 
+  else if (dest && *dest)            { val = *dest; }
+
+  if (val) { b << "\"" << val << "\""; }
+  else     { b << "(null)"; }
+
 }

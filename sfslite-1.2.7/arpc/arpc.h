@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: arpc.h 4005 2009-01-24 15:23:12Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -28,6 +28,7 @@
 
 #include "async.h"
 #include "xdrmisc.h"
+#include "extensible_arpc.h"
 
 /* Solaris 2.4 specific fixes */
 #ifdef NEED_XDR_CALLMSG_DECL
@@ -143,7 +144,13 @@ inline Y *gcc41_cast (X *x)
   void *tmp = x;
   return reinterpret_cast<Y *> (tmp);
 }
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#include <type_traits>
+# define TYPE_PUN_CAST(Y,p) (gcc41_cast<Y, std::remove_pointer<decltype(p)>::type> (p))
+#else
 # define TYPE_PUN_CAST(Y,p) (gcc41_cast<Y, typeof(*(p))> (p))
+#endif
+
 #else  /* __GNUC__ < 4 */
 # define TYPE_PUN_CAST(Y,p) (reinterpret_cast<Y *> (p))
 #endif /* __GNUC__ < 4 */

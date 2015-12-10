@@ -1,5 +1,5 @@
 #!/bin/sh -x
-# $Id: plab 2 2003-09-24 14:35:33Z max $
+# $Id$
 #
 # This script modifies an installed version of SFS so that it
 # can run on the planet lab machines.

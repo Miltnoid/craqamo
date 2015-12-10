@@ -1,5 +1,5 @@
 
-$Id: ChangeLog 1754 2006-05-19 20:59:19Z max $
+$Id$
 
 0.8.9
  - support for callback::signal() within SFS

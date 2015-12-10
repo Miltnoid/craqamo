@@ -39,15 +39,14 @@ class rendezvous_base_t;
 
 class closure_t : public virtual refcount {
 public:
-  closure_t (const char *filename, const char *fun) ;
-
-  virtual ~closure_t () {}
+  closure_t (const char *filename, const char *fun, int lineno = 0);
+  virtual ~closure_t ();
 
   // manage function reentry
   inline void set_jumpto (int i) { _jumpto = i; }
   inline u_int jumpto () const { return _jumpto; }
 
-  inline u_int64_t id () { return _id; }
+  inline u_int64_t id () const { return _id; }
 
   // given a line number of the end of scope, perform sanity
   // checks on scoping, etc.
@@ -63,6 +62,9 @@ public:
   // function name.
   str loc (int lineno) const;
   void error (int lineno, const char *msg);
+
+  // use the line number in the class
+  str loc () const;
 
   // Decremenet the block count; return TRUE if it goes down to 0, signifying
   // contuination inside the function.
@@ -83,12 +85,17 @@ public:
 
   void collect_rendezvous ();
 
+  const char *filename () const { return _filename; }
+  const char *funcname () const { return _funcname; }
+  int lineno () const { return _lineno; }
+
 protected:
 
   u_int64_t _id;
   
   const char *_filename;              // filename for the function
   const char *_funcname;         
+  const int _lineno;
 
 public:
   // Variables involved with managing BLOCK blocks. Note that only one
@@ -100,6 +107,9 @@ public:
   block_t _block;
   
   vec<weakref<rendezvous_base_t> > _rvs;
+
+private:
+  mutable str _cached_loc;
 };
 
 typedef ptr<closure_t> closure_ptr_t;
@@ -207,16 +217,17 @@ extern ptr<closure_t> null_closure;
 extern const char *__cls_type;
 #define CLOSURE              ptr<closure_t> __frame = NULL
 
-/*
-template<class C>
-typename event<>::ref
-_mkevent (const closure_wrapper<C> &c, const char *loc, const char *ctn)
+// Make an event in a twait{} block based upon a given result slotset.
+// Useful in some connectors...
+template<class C, class T1, class T2, class T3>
+typename event<T1,T2,T3>::ref
+_mkevent_rs (const closure_wrapper<C> &c, const char *loc, const char *ctn,
+	     const _tame_slot_set<T1,T2,T3> &ss)
 {
-  typename event<>::ref ret = 
-    _mkevent_implicit_rv (c.closure (), loc, _tame_slot_set<> ());
+  typename event<T1,T2,T3>::ref ret = 
+    _mkevent_implicit_rv (c.closure(), loc, ss);
   ret->set_gdb_info (ctn, c.closure ());
   return ret;
 }
-*/
 
 #endif /* _LIBTAME_CLOSURE_H_ */

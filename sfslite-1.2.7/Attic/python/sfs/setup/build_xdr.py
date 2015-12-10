@@ -3,7 +3,7 @@
 Implements the Distuitils 'build_xdr' command, to run the SFS rpcc
 compiler on input .x files to output buildable .C and .h files."""
 
-__revision__ = "$Id: build_xdr.py 872 2005-05-18 21:20:58Z max $"
+__revision__ = "$Id$"
 
 import os, string
 import os.path

@@ -1,5 +1,5 @@
 /* -*-c++-*- */
-/* $Id: bigint.h 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -27,15 +27,7 @@
 
 #include "sysconf.h"
 
-#if defined (HAVE_GMP_CXX_OPS) || !defined (__cplusplus)
 #include <gmp.h>
-#else /* !HAVE_GMP_CXX_OPS */
-/* Some older C++ header files fail to include some declarations
- * inside an extern "C". */
-extern "C" {
-#include <gmp.h>
-}
-#endif /* !HAVE_GMP_CXX_OPS */
 
 #ifdef __cplusplus
 extern "C" {
@@ -162,7 +154,7 @@ public:
 
   const char *cstr (const int base = 16,
 		    const mutablestr &ms = mutablestr ()) const
-    { return ms.s = getstr (base); }
+  { return (ms.s = getstr (base)).cstr(); }
 
   str getraw () const {
     size_t size = mpz_rawsize (this);
@@ -170,7 +162,7 @@ public:
     mpz_get_raw (ret, size, this);
     return ret;
   };
-  void setraw (str s) { mpz_set_raw (this, s, s.len ()); }
+  void setraw (str s) { mpz_set_raw (this, s.cstr(), s.len ()); }
 
 #define ASSOPX(X, fn)				\
   bigint &operator X (const bigint &b)		\
@@ -691,23 +683,26 @@ legendre (const bigint &a, const bigint &b)
 
 #ifdef _ARPC_XDRMISC_H_
 inline bool
-rpc_traverse (XDR *xdrs, bigint &obj)
+rpc_traverse (XDR *xdrs, bigint &obj, RPC_FIELD)
 {
   return xdr_mpz_t (xdrs, &obj);
 }
+
+V_RPC_TRAV_2(bigint)
+
 inline bool
-rpc_traverse (const stompcast_t, bigint &obj)
+rpc_traverse (const stompcast_t, bigint &obj, RPC_FIELD)
 {
   return true;
 }
 inline bool
-rpc_traverse (rpc_clear_t &, bigint &obj)
+rpc_traverse (rpc_clear_t &, bigint &obj, RPC_FIELD)
 {
   obj = 0;
   return true;
 }
 inline bool
-rpc_traverse (rpc_wipe_t &, bigint &obj)
+rpc_traverse (rpc_wipe_t &, bigint &obj, RPC_FIELD)
 {
   bigint zero (0);
   zero.swap (obj);

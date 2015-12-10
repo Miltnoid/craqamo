@@ -1,4 +1,4 @@
-/* $Id: rxx.C 5123 2010-02-09 23:30:55Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -25,7 +25,7 @@
 #include "amisc.h"
 
 // the default behavior is to panic on any rxx errors.
-bool sfs_rxx_panic = true;
+bool sfs_rxx_panic = false;
 
 
 struct rcbase {
@@ -118,6 +118,9 @@ rxx::init (const char *pat, const char *opt)
     case 'S':
       studyit = true;
       break;
+    case '8':
+      options |= PCRE_UTF8;
+      break;
     default:
       return strbuf ("invalid regular expression option '%c'\n", *opt);
     }
@@ -140,8 +143,9 @@ rxx::init (const char *pat, const char *opt)
       return strbuf () << "Could not study regular expression: " << err;
   }
 
-  int ns = pcre_info (re, NULL, NULL);
-  assert (ns >= 0);
+  int ns;
+  int rc = pcre_fullinfo (re, NULL, PCRE_INFO_CAPTURECOUNT, &ns);
+  assert (rc == 0);
   ovecsize = (ns + 1) * 3;
   return NULL;
 }
@@ -219,7 +223,7 @@ rxx::operator= (const rxx &r)
 int
 split (vec<str> *out, rxx pat, str expr, size_t lim, bool emptylast)
 {
-  const char *p = expr;
+  const char *p = expr.cstr();
   const char *const e = p + expr.len ();
   size_t n;
   if (out)
@@ -245,17 +249,4 @@ split (vec<str> *out, rxx pat, str expr, size_t lim, bool emptylast)
     }
   }
   return n;
-}
-
-str
-join (str sep, const vec<str> &v)
-{
-  strbuf sb;
-  const str *sp = v.base ();
-  if (sp < v.lim ()) {
-    sb.cat (*sp++);
-    while (sp < v.lim ())
-      sb.cat (sep).cat (*sp++);
-  }
-  return sb;
 }

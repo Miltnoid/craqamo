@@ -1,4 +1,4 @@
-/* $Id: xdr_suio.h 1749 2006-05-19 17:50:42Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -57,7 +57,7 @@ isxdrsuio (XDR *x)
 static inline int32_t *
 xdrsuio_inline (XDR *xdrs, u_int count)
 {
-  register suio *const uio = xsuio (xdrs);
+  suio *const uio = xsuio (xdrs);
   char *space;
   assert (!(count & 3));
   space = uio->getspace_aligned (count);

@@ -1,4 +1,4 @@
-/* $Id: dnsparse.C 5124 2010-02-10 22:59:54Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -498,7 +498,7 @@ dnsparse::tomxlist ()
 	name = rr.rr_name;
 	nameptr = nset.store (name);
       }
-      else if (strcasecmp (name, rr.rr_name))
+      else if (strcasecmp (name.cstr(), rr.rr_name))
 	continue;
 
       char *xp = nset.store (rr.rr_mx.mx_exch);
@@ -631,7 +631,7 @@ dnsparse::tosrvlist ()
       name = rr.rr_name;
       nameptr = nset.store (name);
     }
-    else if (strcasecmp (name, rr.rr_name))
+    else if (strcasecmp (name.cstr(), rr.rr_name))
       continue;
 
     char *tp = nset.store (rr.rr_srv.srv_target);

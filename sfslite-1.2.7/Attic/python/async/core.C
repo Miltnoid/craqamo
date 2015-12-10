@@ -7,7 +7,7 @@
 #include "py_debug.h"
 
 //
-// $Id: core.C 867 2005-05-16 19:37:57Z max $
+// $Id$
 //
 
 static PyObject *

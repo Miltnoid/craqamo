@@ -1,5 +1,4 @@
-
-// -*-c++-*-
+// -*- mode: c++; tab-width: 8; c-basic-offset: 4; indent-tabs-mode: nil; -*-
 #include "tame.h"
 #include "tame_io.h"
 #include "tame_connectors.h"
@@ -158,6 +157,7 @@ proxy_t::go (int infd, int outfd, evv_t ev)
     str s;
     holdvar ptr<proxy_t> hold (mkref (_self));
     str dn ("");
+    bool async(false);
   }
 
   // if we're outputting an error message, it would be good to
@@ -182,22 +182,35 @@ proxy_t::go (int infd, int outfd, evv_t ev)
   // We might revisit in the future and require that proxy takes
   // an rcfd_t; that's a surefire solution to the issue.
   while (!err && !cancelled && (!is_eof() || is_writable ())) {
+    if (is_sync_readable() && !is_eof()) {
+        which = READ;
+        async = false;
+    } else if (is_sync_writeable()) {
+        which = WRITE;
+        async = false;
+    } else {
+        async = true;
+        if (is_readable () && !is_eof ()) read.on ();
+        else read.off ();
     
-    if (is_readable () && !is_eof ()) read.on ();
-    else read.off ();
-    
-    if (is_writable ()) write.on ();
-    else write.off ();
+        if (is_writable ()) write.on ();
+        else write.off ();
 
-    twait (rv, which);
+        twait (rv, which);
+    }
 
     switch (which) {
     case POKE:
       break;
     case READ: 
       if ((rc = v_read (read.fd())) == 0) {
-	do_debug ("EOF on socket");
-	set_eof ();
+          if (!async) {
+              warn << "TV_ERROR: " __FILE__ "[" << __LINE__ << "]"
+                   << " proxy lied about having async data available...\n";
+          } else {
+              do_debug ("EOF on socket");
+              set_eof ();
+          }
       } else if (rc < 0) {
 	if (read_error (&s)) {
 	  warn ("read error%s: %s\n", dn.cstr (), s.cstr ());

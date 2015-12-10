@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: rxx.h 4583 2009-08-07 14:06:15Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -87,6 +87,7 @@ public:
 
   rxx (const char *pat, const char *opt = "")
     { if (str s = init (pat, opt)) panic ("%s", s.cstr ()); }
+  rxx (const str &pat, const char *opt = "") : rxx(pat.cstr(), opt) {}
   rxx (const rxx &r) { assert (r.re); copy (r); }
   ~rxx () { freemem (); }
 
@@ -139,10 +140,14 @@ public:
   rrxx () { mknull (); }
   explicit rrxx (const char *pat, const char *opt = "")
     { err = init (pat, opt); }
+  explicit rrxx (const str &s, const char *opt = "") :
+    rrxx(s.cstr(), opt) {}
   rrxx (const rxx &r) { err = NULL; copy (r); }
   rrxx (const rrxx &r) { err = r.err; copy (r); }
   bool compile (const char *pat, const char *opt = "")
     { freemem (); mknull (); err = init (pat, opt); return !err; }
+  bool compile (const str &s, const char *opt = "")
+    { return compile (s.cstr(), opt = ""); }
   const str &geterr () const { return err; }
 };
 
@@ -183,6 +188,18 @@ operator/ (const str &s, const char *p)
 
 int split (vec<str> *out, rxx pat, str expr,
 	   size_t lim = (size_t) -1, bool emptylast = false);
-str join (str sep, const vec<str> &v);
+
+template <typename T>
+str join (str sep, const vec<T> &v)
+{
+  strbuf sb;
+  const T *sp = v.base ();
+  if (sp < v.lim ()) {
+    sb.cat (*sp++);
+    while (sp < v.lim ())
+      sb.cat (sep).cat (*sp++);
+  }
+  return sb;
+}
 
 #endif /* !_RXX_H_ */

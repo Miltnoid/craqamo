@@ -19,7 +19,7 @@ LIBCONFIG_BIN = ./libconfig_install
 
 GMP_DIR = ./gmp-4.3.1
 
-CC=g++
+CC=g++ -std=c++11
 
 
 AM_LDFLAGS =-g -O2 -Wall -Werror -Wno-unused -Wno-sign-compare \
@@ -45,7 +45,8 @@ LDADD= $(SFS_LIB_DIR)/libtame.a \
 		-lzookeeper_st \
 		-llog4cpp \
 		-lpthread \
-		-lconfig++
+		-lconfig++ \
+		-lpcre
 	
 OBJS= craq_rpc.c \
       ID_Value.c \

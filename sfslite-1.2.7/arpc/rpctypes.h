@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: rpctypes.h 4555 2009-06-25 15:38:05Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -33,17 +33,24 @@
 #include "err.h"
 #include "qhash.h"
 
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#include <initializer_list>
+#endif
+
+
+typedef void * (*xdr_alloc_t) ();
+
 struct rpcgen_table {
   const char *name;
 
   const std::type_info *type_arg;
-  void *(*alloc_arg) ();
+  xdr_alloc_t alloc_arg;
   sfs::xdrproc_t xdr_arg;
   void (*print_arg) (const void *, const strbuf *, int,
 		     const char *, const char *);
 
   const std::type_info *type_res;
-  void *(*alloc_res) ();
+  xdr_alloc_t alloc_res;
   sfs::xdrproc_t xdr_res;
   void (*print_res) (const void *, const strbuf *, int,
 		     const char *, const char *);
@@ -56,6 +63,13 @@ struct rpc_program {
   size_t nproc;
   const char *name;
   bool lookup (const char *rpc, u_int32_t *out) const;
+};
+
+struct xdr_procpair_t {
+  xdr_procpair_t () : alloc (NULL), proc (NULL) {}
+  xdr_procpair_t (xdr_alloc_t a, sfs::xdrproc_t p) : alloc (a), proc (p) {}
+  xdr_alloc_t alloc;
+  sfs::xdrproc_t proc;
 };
 
 enum { RPC_INFINITY = 0x7fffffff };
@@ -95,8 +109,10 @@ swap (rpc_ptr<T> &a, rpc_ptr<T> &b)
   a.swap (b);
 }
 
-
-template<class T, size_t max> class rpc_vec : private vec<T> {
+// MK 2010/11/29 -- change this inheritance to be public rather than
+// private...  it was causing too many headaches otherwise, and i don't
+// understand why it was the way it was....
+template<class T, size_t max> class rpc_vec : public vec<T> {
   typedef vec<T> super;
 public:
   typedef typename super::elm_t elm_t;
@@ -141,6 +157,14 @@ protected:
 public:
   rpc_vec () { init (); }
   rpc_vec (const rpc_vec &v) { init (); copy (v); }
+
+  #ifdef __GXX_EXPERIMENTAL_CXX0X__
+  explicit rpc_vec(std::initializer_list<T> l) : rpc_vec() {
+    reserve(l.size());
+    for (auto v:l) { push_back(v); }
+  }
+  #endif
+
   template<size_t m> rpc_vec (const rpc_vec<T, m> &v) { init (); copy (v); }
   ~rpc_vec () { if (nofree) super::init (); }
   void clear () { del (); init (); }
@@ -193,6 +217,29 @@ public:
   const elm_t &operator[] (size_t i) const { return super::operator[] (i); }
   elm_t &at (size_t i) { return (*this)[i]; }
   const elm_t &at (size_t i) const { return (*this)[i]; }
+
+#define _append(v)						\
+do {								\
+  reserve (v.size ());						\
+  for (const elm_t *s = v.base (), *e = v.lim (); s < e; s++)	\
+    this->cconstruct (*lastp++, *s);					\
+} while (0)
+
+  template<size_t m> rpc_vec &append (const rpc_vec<T,m> &v)
+  { _append(v); return *this; }
+  template<size_t m> rpc_vec &append (const vec<T,m> &v)
+  { _append(v); return *this; }
+  template<size_t m> rpc_vec &operator+= (const rpc_vec<T,m> &v)
+  { return append(v); }
+  template<size_t m> rpc_vec &operator+= (const vec<T,m> &v)
+  { return append(v); }
+
+  template<size_t m> rpc_vec (const vec<T, m> &v) {
+    init ();
+    (void) append (v);
+  }
+
+#undef append
 
   elm_t &push_back () {
     ensure (1);
@@ -367,116 +414,193 @@ template<size_t n> struct hashfn<rpc_bytes<n> > {
     { return hash_bytes (a.base (), a.size ()); }
 };
 
+/* 
+ * Default dummy enter and exit functions
+ */
+template<class T> void rpc_enter_field (T &t, const char *f) {}
+template<class T> void rpc_exit_field (T &t, const char *f) {}
+template<class T> void rpc_exit_array (T &t) {}
+template<class T> void rpc_enter_slot (T &t, size_t i) {}
+template<class T> void rpc_exit_slot (T &t, size_t i) {}
+template<class T> void rpc_exit_pointer (T &t, bool b) {}
+
+/*
+ * MK 2010/11/01
+ *
+ * rpc_enter_array is used for both RPC vectors and RPC arrays
+ * The former can size dynamically, the latter are statically sized.
+ * In default XDR, for vectors, this method will put on the wire
+ * (or read off the wire) the size of the vector. For arrays, that's
+ * not necessary.  For other types of RPC like JSON, it's
+ * not necessary for arrays or vectors.  They can specialize this
+ * template to achieve that result.
+ *
+ */
+template<class T> bool rpc_enter_array (T &t, u_int32_t &i, bool is_vector) 
+{
+  bool ret = true;
+  if (is_vector) { ret = rpc_traverse (t, i); }
+  return ret;
+}
 
 /*
  * Default traversal functions
  */
 
 template<class T, class R, size_t n> inline bool
-rpc_traverse (T &t, array<R, n> &obj)
+rpc_traverse (T &t, array<R, n> &obj, const char *field = NULL) 
 {
   typedef typename array<R, n>::elm_t elm_t;
+  bool ret = true;
+
+  rpc_enter_field(t, field);
+  u_int32_t sz = obj.size ();
+  rpc_enter_array (t, sz, false);
 
   elm_t *p = obj.base ();
   elm_t *e = obj.lim ();
-  while (p < e)
+  size_t s = 0;
+  while (ret && p < e) {
+    rpc_enter_slot (t, s);
     if (!rpc_traverse (t, *p++))
-      return false;
-  return true;
+      ret = false;
+    rpc_exit_slot (t, s++);
+  }
+
+  rpc_exit_array (t);
+  rpc_exit_field (t, field);
+  return ret;
 }
 
 template<class T, class R, size_t n> inline bool
-rpc_traverse (T &t, rpc_vec<R, n> &obj)
+rpc_traverse (T &t, rpc_vec<R, n> &obj, const char *field = NULL)
 {
   typedef typename rpc_vec<R, n>::elm_t elm_t;
 
+  bool ret = true;
+  rpc_enter_field (t, field);
   u_int32_t size = obj.size ();
-  if (!rpc_traverse (t, size) || size > obj.maxsize)
-    return false;
 
-  if (size < obj.size ())
-    obj.setsize (size);
-  else if (size > obj.size ()) {
-    size_t maxreserve = 0x10000 / sizeof (elm_t);
-    maxreserve = min<size_t> (maxreserve, size);
-    if (obj.size () < maxreserve)
-      obj.reserve (maxreserve - obj.size ());
+  if (!rpc_enter_array (t, size, true) || size > obj.maxsize) {
+    ret = false;
+  } else {
+    if (size < obj.size ())
+      obj.setsize (size);
+    else if (size > obj.size ()) {
+      size_t maxreserve = 0x10000 / sizeof (elm_t);
+      maxreserve = min<size_t> (maxreserve, size);
+      if (obj.size () < maxreserve)
+	obj.reserve (maxreserve - obj.size ());
+    }
+    
+    elm_t *p = obj.base ();
+    elm_t *e = obj.lim ();
+    size_t s = 0;
+    while (ret && p < e) {
+      rpc_enter_slot (t, s);
+      if (!rpc_traverse (t, *p++))
+	ret = false;
+      rpc_exit_slot (t, s++);
+    }
+    for (size_t i = size - obj.size (); ret && i > 0; i--) {
+      rpc_enter_slot (t, s);
+      if (!rpc_traverse (t, obj.push_back ()))
+	ret = false;
+      rpc_exit_slot (t, s++);
+    }
   }
-
-  elm_t *p = obj.base ();
-  elm_t *e = obj.lim ();
-  while (p < e)
-    if (!rpc_traverse (t, *p++))
-      return false;
-  for (size_t i = size - obj.size (); i > 0; i--)
-    if (!rpc_traverse (t, obj.push_back ()))
-      return false;
-  return true;
+  rpc_exit_array (t);
+  rpc_exit_field (t, field);
+  return ret;
 }
-
+  
 template<class T, class R> inline bool
-rpc_traverse (T &t, rpc_ptr<R> &obj)
+rpc_traverse (T &t, rpc_ptr<R> &obj, const char *field = NULL)
 {
   bool nonnil = obj;
-  if (!rpc_traverse (t, nonnil))
-    return false;
-  if (nonnil)
-    return rpc_traverse (t, *obj.alloc ());
-  obj.clear ();
-  return true;
+  bool ret = true;
+  if (!rpc_traverse (t, nonnil)) {
+    ret = false;
+  } else if (nonnil) {
+    ret = rpc_traverse (t, *obj.alloc ());
+  } else {
+    obj.clear ();
+  }
+  return ret;
 }
 
 template<class T> inline bool
-rpc_traverse (T &t, bool &obj)
+rpc_traverse (T &t, bool &obj, const char *field = NULL)
 {
   u_int32_t val = obj;
-  if (!rpc_traverse (t, val))
-    return false;
-  obj = val;
-  return true;
+  bool ret = true;
+  rpc_enter_field (t, field);
+  if (!rpc_traverse (t, val)) {
+    ret = false;
+  } else {
+    obj = val;
+  }
+  rpc_exit_field (t, field);
+  return ret;
 }
 
 template<class T> inline bool
-rpc_traverse (T &t, u_int64_t &obj)
+rpc_traverse (T &t, u_int64_t &obj, const char *field = NULL)
 {
   u_int32_t hi = obj >> 32;
   u_int32_t lo = obj;
-  if (!rpc_traverse (t, hi) || !rpc_traverse (t, lo))
-    return false;
-  obj = u_int64_t (hi) << 32 | lo;
-  return true;
+  bool ret = true;
+  rpc_enter_field (t, field);
+  if (!rpc_traverse (t, hi) || !rpc_traverse (t, lo)) {
+    ret = false;
+  } else {
+    obj = u_int64_t (hi) << 32 | lo;
+  }
+  rpc_exit_field (t, field);
+  return ret;
 }
 
 template<class T> inline bool
-rpc_traverse (T &t, double &obj)
+rpc_traverse (T &t, double &obj, const char *field = NULL)
 {
   int64_t d = 100000000;
   double tmp = obj * d;
   int64_t n = int64_t (tmp);
-  if (!rpc_traverse (t, d) || !rpc_traverse (t, n))
-    return false; 
-  obj = (double)n / (double)d;
-  return true;
+  bool ret = true;
+  rpc_enter_field (t, field);
+  if (!rpc_traverse (t, d) || !rpc_traverse (t, n)) {
+    ret = false; 
+  } else {
+    obj = (double)n / (double)d;
+  }
+  rpc_exit_field (t, field);
+  return ret;
 }
 
 template<class T> inline bool
-rpc_traverse (T &t, int32_t &obj)
+rpc_traverse (T &t, int32_t &obj, const char *field = NULL)
 {
-  return rpc_traverse (t, reinterpret_cast<u_int32_t &> (obj));
+  rpc_enter_field (t, field);
+  bool ret = rpc_traverse (t, reinterpret_cast<u_int32_t &> (obj));
+  rpc_exit_field (t, field);
+  return ret;
 }
 
 template<class T> inline bool
-rpc_traverse (T &t, int64_t &obj)
+rpc_traverse (T &t, int64_t &obj, const char *field = NULL)
 {
-  return rpc_traverse (t, reinterpret_cast<u_int64_t &> (obj));
+  rpc_enter_field (t, field);
+  bool ret = rpc_traverse (t, reinterpret_cast<u_int64_t &> (obj));
+  rpc_exit_field (t, field);
+  return ret;
 }
 
-#define DUMBTRANS(T, type)			\
-inline bool					\
-rpc_traverse (T &, type &)			\
-{						\
-  return true;					\
-}
+#define DUMBTRANS(T, type)						\
+  inline bool								\
+  rpc_traverse (T &, type &, const char *f = NULL)			\
+  {									\
+    return true;							\
+  }
 
 #define DUMBTRAVERSE(T)				\
 DUMBTRANS(T, char)				\
@@ -512,51 +636,53 @@ extern struct rpc_clear_t _rpcclear;
 struct rpc_wipe_t : public rpc_clear_t {};
 extern struct rpc_wipe_t _rpcwipe;
 
+#define RPC_FIELD const char *field = NULL
+
 inline bool
-rpc_traverse (rpc_clear_t &, u_int32_t &obj)
+rpc_traverse (rpc_clear_t &, u_int32_t &obj, RPC_FIELD)
 {
   obj = 0;
   return true;
 }
 template<size_t n> inline bool
-rpc_traverse (rpc_clear_t &, rpc_opaque<n> &obj)
+rpc_traverse (rpc_clear_t &, rpc_opaque<n> &obj, RPC_FIELD)
 {
   bzero (obj.base (), obj.size ());
   return true;
 }
 template<size_t n> inline bool
-rpc_traverse (rpc_wipe_t &, rpc_opaque<n> &obj)
+rpc_traverse (rpc_wipe_t &, rpc_opaque<n> &obj, RPC_FIELD)
 {
   bzero (obj.base (), obj.size ());
   return true;
 }
 template<size_t n> inline bool
-rpc_traverse (rpc_clear_t &, rpc_bytes<n> &obj)
+rpc_traverse (rpc_clear_t &, rpc_bytes<n> &obj, RPC_FIELD)
 {
   obj.setsize (0);
   return true;
 }
 template<size_t n> inline bool
-rpc_traverse (rpc_wipe_t &, rpc_bytes<n> &obj)
+rpc_traverse (rpc_wipe_t &, rpc_bytes<n> &obj, RPC_FIELD)
 {
   bzero (obj.base (), obj.size ());
   obj.setsize (0);
   return true;
 }
 template<size_t n> inline bool
-rpc_traverse (rpc_clear_t &, rpc_str<n> &obj)
+rpc_traverse (rpc_clear_t &, rpc_str<n> &obj, RPC_FIELD)
 {
   obj = "";
   return true;
 }
 template<class T> inline bool
-rpc_traverse (rpc_clear_t &, rpc_ptr<T> &obj)
+rpc_traverse (rpc_clear_t &, rpc_ptr<T> &obj, RPC_FIELD)
 {
   obj.clear ();
   return true;
 }
 template<class T> inline bool
-rpc_traverse (rpc_wipe_t &t, rpc_ptr<T> &obj)
+rpc_traverse (rpc_wipe_t &t, rpc_ptr<T> &obj, RPC_FIELD)
 {
   if (obj)
     rpc_traverse (t, *obj);
@@ -564,13 +690,13 @@ rpc_traverse (rpc_wipe_t &t, rpc_ptr<T> &obj)
   return true;
 }
 template<class T, size_t n> inline bool
-rpc_traverse (rpc_clear_t &, rpc_vec<T, n> &obj)
+rpc_traverse (rpc_clear_t &, rpc_vec<T, n> &obj, RPC_FIELD)
 {
   obj.setsize (0);
   return true;
 }
 template<class T, size_t n> inline bool
-rpc_traverse (rpc_wipe_t &t, rpc_vec<T, n> &obj)
+rpc_traverse (rpc_wipe_t &t, rpc_vec<T, n> &obj, RPC_FIELD)
 {
   for (typename rpc_vec<T, n>::elm_t *p = obj.base (); p < obj.lim (); p++)
     rpc_traverse (t, *p);
@@ -692,18 +818,18 @@ template<size_t n> struct rpc_namedecl<rpc_str<n> > {
 };
 template<class T> struct rpc_namedecl<rpc_ptr<T> > {
   static str decl (const char *name) {
-    return rpc_namedecl<T>::decl (str (strbuf () << "*" << name));
+    return rpc_namedecl<T>::decl ((str (strbuf () << "*" << name)).cstr());
   }
 };
 template<class T, size_t n> struct rpc_namedecl<rpc_vec<T, n> > {
   static str decl (const char *name) {
-    return strbuf () << rpc_namedecl<T>::decl (rpc_parenptr (name))
+    return strbuf () << rpc_namedecl<T>::decl ((rpc_parenptr (name)).cstr())
 		     << rpc_dynsize (n);
   }
 };
 template<class T, size_t n> struct rpc_namedecl<array<T, n> > {
   static str decl (const char *name) {
-    return rpc_namedecl<T>::decl (rpc_parenptr (name)) << "[" << n << "]";
+    return rpc_namedecl<T>::decl ((rpc_parenptr (name)).cstr()) << "[" << n << "]";
   }
 };
 template<size_t n> struct rpc_namedecl<rpc_bytes<n> > {
@@ -822,10 +948,14 @@ rpc_print_array_vec (const strbuf &sb, const T &obj,
 	if (npref)
 	  sb << npref;
 	sb << "[" << i << "] = ";
-	rpc_print (sb, obj[i], recdepth, NULL, npref);
+	rpc_print (sb, obj[i], recdepth, NULL, npref.cstr());
       }
-      if (i < obj.size ())
-	sb << (i ? sep : "") << npref << "..." << (npref ? "\n" : " ");
+      if (i < obj.size ()) {
+        sb << (i ? sep : "");
+        if (npref)
+          sb << npref;
+        sb << "..." << (npref ? "\n" : " ");
+      }
     }
     else {
       size_t i;

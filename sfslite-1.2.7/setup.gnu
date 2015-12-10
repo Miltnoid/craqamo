@@ -1,5 +1,18 @@
 #!/bin/sh
 
+if [ ! -d m4 ]
+then
+  mkdir m4
+fi
+
+for f in README NEWS
+do
+  if [ ! -f $f ]
+  then
+    touch $f
+  fi
+done
+
 M4=gm4
 $M4 --version < /dev/null 2>&1 | grep GNU >/dev/null 2>&1 || M4=gnum4
 $M4 --version < /dev/null 2>&1 | grep GNU >/dev/null 2>&1 || M4=m4

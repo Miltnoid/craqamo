@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 4100 2009-02-19 15:01:52Z max $
+# $Id$
 
 LDADD = $(LIBSFSCRYPT) $(LIBARPC) $(LIBASYNC) $(LIBGMP) $(LDADD_THR) $(LDADD_STD_ALL)
 

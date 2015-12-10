@@ -1,4 +1,4 @@
-/* $Id: nfs3_prot.x 5125 2010-02-10 23:16:43Z max $ */
+/* $Id$ */
 
 #ifndef RFC_SYNTAX
 # define RFC_SYNTAX 1

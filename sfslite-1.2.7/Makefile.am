@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-## $Id: Makefile.am 4124 2009-02-23 16:26:41Z max $
+## $Id$
 
 
 ACLOCAL_AMFLAGS = -I m4
@@ -28,9 +28,9 @@ ARPCGEN =
 endif
 
 if USE_TESTS
-TESTS = tests
+TESTS_DIR = tests
 else
-TESTS = 
+TESTS_DIR = 
 endif
 
 if USE_TOOLS
@@ -53,7 +53,7 @@ SUBDIRS = \
 	tame \
 	libtame \
 	libaapp \
-	$(TESTS) \
+	$(TESTS_DIR) \
 	$(TUTORIAL) \
 	$(TOOLS)
 

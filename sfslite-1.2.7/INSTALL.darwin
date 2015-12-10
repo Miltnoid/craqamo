@@ -1,4 +1,4 @@
-$Id: INSTALL.darwin 2 2003-09-24 14:35:33Z max $
+$Id$
 
 SFS compiles on Darwin.  It will not run on versions older than 1.4
 because file descriptor passing is broken in older versions of the

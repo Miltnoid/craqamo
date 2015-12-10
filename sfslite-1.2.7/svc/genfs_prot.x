@@ -1,4 +1,4 @@
-/* $Id: genfs_prot.x 1754 2006-05-19 20:59:19Z max $ */
+/* $Id$ */
 
 #include "nfs3_prot.h"
 

@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 3858 2009-01-04 15:16:21Z max $
+# $Id$
 
 sfslib_LTLIBRARIES = libsfsmisc.la
 LIBSFSMISC = libsfsmisc.la

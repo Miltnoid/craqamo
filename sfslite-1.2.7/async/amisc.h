@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: amisc.h 4580 2009-08-06 20:06:31Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -58,6 +58,8 @@ char *strnnsep (char **, const char *);
 /* socket.C */
 extern in_addr inet_bindaddr;
 int inetsocket (int, u_int16_t = 0, u_int32_t = INADDR_ANY);
+int inetsocket6 (int, u_int16_t = 0, 
+                 const in6_addr& addr = in6addr_any);
 int inetsocket_resvport (int, u_int32_t = INADDR_ANY);
 int unixsocket (const char *);
 int unixsocket_connect (const char *);
@@ -154,6 +156,13 @@ void daemonize (const str &name = NULL);
 void start_logger ();
 int start_logger (const str &pri, const str &tag, const str &line, 
 		  const str &logfile, int flags, mode_t mode);
+
+// You can set your own logger (not standard system logger) 
+// with your own argument flags and parameters. 
+void set_syslog_logger (const vec<str> &v);
+bool get_syslog_logger (vec<str> *out);
+bool check_syslog_logger (str s, vec<str> *out);
+bool set_syslog_logger (str s);
 
 /* Random usefull operators */
 #include "keyfunc.h"

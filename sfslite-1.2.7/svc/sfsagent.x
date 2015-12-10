@@ -1,4 +1,4 @@
-/* $Id: sfsagent.x 1754 2006-05-19 20:59:19Z max $ */
+/* $Id$ */
 
 /*
  * This file was written by David Mazieres and Michael Kaminsky.  Its

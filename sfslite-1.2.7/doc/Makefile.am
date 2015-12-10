@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-## $Id: Makefile.am 2 2003-09-24 14:35:33Z max $
+## $Id$
 
 info_TEXINFOS = sfs.texi
 man_MANS = sfs.7 $(TEXIMANS)

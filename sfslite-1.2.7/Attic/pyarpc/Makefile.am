@@ -1,5 +1,5 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 863 2005-05-16 05:40:02Z max $
+# $Id$
 
 sfslib_LTLIBRARIES = libpyarpc.la
 

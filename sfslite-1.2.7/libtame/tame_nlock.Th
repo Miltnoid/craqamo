@@ -47,7 +47,7 @@ namespace tame {
   class lock_handle_t : public virtual refcount {
   public:
     lock_handle_t (lock_table_t<T> *t, named_lock_t<T> *l)
-      : _tab (t), _lock (l), _released (false) { l->incref (); }
+      : _tab (t), _lock (l), _waiter(NULL), _released (false) { l->incref (); }
     
     ~lock_handle_t ()
     {
@@ -55,7 +55,7 @@ namespace tame {
       _lock->decref (_tab);
     }
     
-    void cancel () { _released = true; _lock->cancel (_waiter); }
+    void cancel () { _released = true; if (_waiter) _lock->cancel (_waiter); }
     void release () { _released = true; _lock->release (); }
     void set_waiter (lock_t::waiter_t *w) { _waiter = w; }
     
@@ -74,6 +74,10 @@ namespace tame {
     void acquire (ptr<lock_handle_t<T> > *out,
 		  T n, lock_t::mode_t mode, cbv cb,
 		  CLOSURE);
+    void timed_acquire (ptr<lock_handle_t<T> > *out,
+            T n, lock_t::mode_t mode, u_int s, u_int ms, cbb cb,
+            CLOSURE);
+
   private:
     ihash<T, named_lock_t<T>, &named_lock_t<T>::_name, 
 	  &named_lock_t<T>::_lnk> _locks;
@@ -108,7 +112,35 @@ namespace tame {
     } 
     (*cb) ();
   }
+  
+  tamed template<class T> void
+  lock_table_t<T>::timed_acquire (ptr<lock_handle_t<T> > *out,
+              T n, lock_t::mode_t mode, u_int s, u_int ms, cbb cb)
+  {
+    tvars {
+      named_lock_t<T> *l (NULL);
+      ptr<lock_handle_t<T> > ret;
+      bool do_acquire (true);
+      bool ok (true);
+    }
+    
+    l = _locks[n];
+    if (!l) {
+      l = New named_lock_t<T> (n, mode);
+      _locks.insert (l);
+      do_acquire = false;
+    } 
+    ret = New refcounted<lock_handle_t<T> > (this, l);
+    *out = ret;
+    if (do_acquire) {
+      twait { l->timed_acquire (mode, s, ms, mkevent (ok)); }
+    } 
 
+    if (!ok) {
+        (*out)->cancel();
+    }
+    (*cb) (ok);
+  }
 };
   
   

@@ -1,4 +1,4 @@
-/* $Id: sha1.C 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -78,7 +78,7 @@ void
 sha1::transform (u_int32_t state[sha1::hashwords],
 		 const u_int8_t block[sha1::blocksize])
 {
-  register u_int32_t a, b, c, d, e;
+  u_int32_t a, b, c, d, e;
   u_int32_t tmp[16];
 
   /* Copy context->state[] to working vars */

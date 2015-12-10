@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: test.T 2675 2007-04-03 06:11:36Z eddietwo $ */
+/* $Id$ */
 
 #include "async.h"
 #include "qhash.h"

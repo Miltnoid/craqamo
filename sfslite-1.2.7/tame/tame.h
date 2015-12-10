@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: tame.h 3131 2007-11-17 05:00:05Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -61,11 +61,11 @@ extern int yylex ();
 extern int yyparse ();
 #undef yyerror
 extern int yyerror (str);
+extern int yyget_lineno();
 
 extern int yyparse ();
 extern int yydebug;
 extern FILE *yyin;
-extern int get_yy_lineno ();
 extern str get_yy_loc ();
 
 typedef enum { NONE = 0, ARG = 1, STACK = 2, CLASS = 3, EXPR = 4 } vartyp_t ;
@@ -134,7 +134,7 @@ class outputter_t {
 public:
   outputter_t (const str &in, const str &out, bool ox) 
     : _mode (OUTPUT_NONE), _infn (in), _outfn (out), _fd (-1), 
-      _lineno (1), _output_xlate (ox), _need_xlate (false), 
+      _lineno (1), _output_xlate (ox),  
       _last_char_was_nl (false), _last_output_in_mode (OUTPUT_NONE),
       _last_lineno (-1), _did_output (false), 
       _do_output_line_number (false) {}
@@ -159,7 +159,6 @@ private:
 
   strbuf _buf;
   vec<str> _strs;
-  bool _need_xlate;
   bool _last_char_was_nl;
   output_mode_t _last_output_in_mode;
   int _last_lineno;
@@ -182,7 +181,7 @@ class tame_el_t {
 public:
   tame_el_t () {}
   virtual ~tame_el_t () {}
-  virtual bool append (const str &s) { return false; }
+  virtual bool append (const lstr &s) { return false; }
   virtual void output (outputter_t *o) = 0;
   virtual bool goes_after_vars () const { return true; }
   tailq_entry<tame_el_t> _lnk;
@@ -241,12 +240,12 @@ public:
   str pointer () const { return _pointer; }
   str to_str () const;
   str to_str_w_template_args (bool p = true) const;
-  str mk_ptr () const;
+  str mk_ptr (bool usetmpl=true) const;
   str alloc_ptr (const str &nm, const str &args) const;
-  str type_without_pointer () const;
+  str type_without_pointer (bool usetmpl=true) const;
   void set_base_type (const str &t) { _base_type = t; }
   void set_pointer (const str &p) { _pointer = p; }
-  bool is_complete () const { return _base_type; }
+  bool is_complete () const { return bool(_base_type); }
   bool is_void () const 
   { return (_base_type == "void" && (!_pointer || _pointer.len () == 0)); } 
   bool is_ref () const { return _pointer && strchr (_pointer.cstr (), '&'); }
@@ -312,7 +311,7 @@ public:
   ptr<initializer_t> initializer () const { return _initializer; }
   bool do_output () const;
 
-  str decl () const;
+  str decl (bool usetmpl=true) const;
   str decl (const str &prfx, int n) const;
   str decl (const str &prfx) const;
   str ref_decl () const;
@@ -383,9 +382,9 @@ private:
 
 // Convert:
 //
-//   foo_t::max<int,int> => foo_t__max_int_int_
+//   foo_t::max<int,int> test.C:808 => foo_t__max_int_int_6eabcd
 //
-str mangle (const str &in);
+str mangle (const str &in, const str &loc);
 
 //
 // convert 
@@ -419,7 +418,7 @@ public:
     : _ret_type (ws_strip (r), 
 		 d->pointer () ? ws_strip (d->pointer ()) : NULL), 
       _name (d->name ()),
-      _name_mangled (mangle (_name)), 
+      _name_mangled (mangle (_name, loc)),
       _method_name (strip_to_method (_name)),
       _class (strip_off_method (_name)), 
       _self (c ? str (strbuf ("const ") << _class) : _class, "*", "_self"),
@@ -497,6 +496,10 @@ public:
   str loc () const { return _loc; }
 
   str return_expr () const;
+
+  bool is_template_spec() const {
+    return (_template && _template.len() == 0);
+  }
 
   str template_str () const
   { return (_template ? str (strbuf ("template< " ) << _template << " >") 
@@ -734,10 +737,8 @@ protected:
 class tame_wait_t : public tame_join_t {
 public:
   tame_wait_t (tame_fn_t *f, ptr<expr_list_t> l, int ln) 
-    : tame_join_t (f, l), _lineno (ln) {}
+    : tame_join_t (f, l) {}
   void output (outputter_t *o);
-private:
-  int _lineno;
 };
 
 extern parse_state_t *state;

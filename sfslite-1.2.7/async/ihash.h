@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: ihash.h 4124 2009-02-23 16:26:41Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -44,6 +44,7 @@
 
 #include "callback.h"
 #include "keyfunc.h"
+#include "vec.h"
 
 template<class T> class ihash_entry;
 template<class T, ihash_entry<T> T::*field> class ihash_core;
@@ -91,7 +92,7 @@ protected:
   ihash_core () { init (); }
 
   bool present (T *elm) {
-    for (T *e = lookup_val ((elm->*field).val); e; e = next_val (e))
+    for (T *e = this->lookup_val ((elm->*field).val); e; e = this->next_val (e))
       if (e == elm)
 	return true;
     return false;
@@ -168,6 +169,7 @@ public:
     clear ();
   }
   size_t size () const { return t.entries; }
+  size_t buckets() const { return t.buckets; }
   bool constructed () const { return t.buckets > 0; }
 
   bool has_room () const { return t.entries < t.buckets; }
@@ -197,12 +199,24 @@ public:
     return NULL;
   }
 
+  T *first_in_bucket (const size_t bucket) const {
+    if (bucket < t.buckets && t.tab[bucket])
+      return (T *) t.tab[bucket];
+    return NULL;
+  }
+
   T *next (const T *n) const {
     if ((n->*field).next)
       return (T *) (n->*field).next;
     for (size_t i = (n->*field).val % t.buckets; ++i < t.buckets;)
       if (t.tab[i])
 	return (T *) t.tab[i];
+    return NULL;
+  }
+
+  T *next_in_bucket(const T *n) const {
+    if ((n->*field).next)
+      return (T *) (n->*field).next;
     return NULL;
   }
 
@@ -214,7 +228,7 @@ public:
       }
   }
 
-  void traverse (typename callback<void, const T &>::ref cb) const {
+  void traverse (typename callback<void, const T&>::ref cb) const {
     for (size_t i = 0; i < t.buckets; i++)
       for (T *n = (T *) t.tab[i], *nn; n; n = nn) {
 	nn = (T *) (n->*field).next;
@@ -248,7 +262,7 @@ public:
   ihash () : eq (E ()), hash (H ()) {}
   ihash (const E &e, const H &h) : eq (e), hash (h) {}
 
-  bool insert (V *elm) { return insert_val (elm, hash (elm->*key)); }
+  bool insert (V *elm) { return this->insert_val (elm, hash (elm->*key)); }
 
 #if 0
   template<class T> V *operator[] (const T &k) const {
@@ -256,16 +270,16 @@ public:
   V *operator[] (const K &k) const {
 #endif
     V *v;
-    for (v = lookup_val (hash (k));
+    for (v = this->lookup_val (hash (k));
 	 v && !eq (k, v->*key);
-	 v = next_val (v))
+	 v = this->next_val (v))
       ;
     return v;
   }
 
   V *nextkeq (V *v) {
     const K &k = v->*key;
-    while ((v = next_val (v)) && !eq (k, v->*key))
+    while ((v = this->next_val (v)) && !eq (k, v->*key))
       ;
     return v;
   };
@@ -287,13 +301,13 @@ public:
     : eq1 (e1), eq2 (e2), hash (h) {}
 
   void insert (V *elm)
-    { insert_val (elm, hash (elm->*key1, elm->*key2)); }
+    { this->insert_val (elm, hash (elm->*key1, elm->*key2)); }
 
   V *operator() (const K1 &k1, const K2 &k2) const {
     V *v;
-    for (v = lookup_val (hash (k1, k2));
+    for (v = this->lookup_val (hash (k1, k2));
 	 v && !(eq1 (k1, v->*key1) && eq2 (k2, v->*key2));
-	 v = next_val (v))
+	 v = this->next_val (v))
       ;
     return v;
   }
@@ -301,7 +315,7 @@ public:
   V *nextkeq (V *v) {
     const K1 &k1 = v->*key1;
     const K1 &k2 = v->*key2;
-    while ((v = next_val (v))
+    while ((v = this->next_val (v))
 	   && !(eq1 (k1, v->*key1) && eq2 (k2, v->*key2)))
       ;
     return v;
@@ -320,20 +334,20 @@ public:
   shash () {}
   shash (const E &e, const H &h) : eq (e), hash (h) {}
 
-  void insert (V *elm) { insert_val (elm, hash (*elm)); }
+  void insert (V *elm) { this->insert_val (elm, hash (*elm)); }
 
   V *operator[] (const V &k) const {
     V *v;
-    for (v = lookup_val (hash (k));
+    for (v = this->lookup_val (hash (k));
 	 v && !eq (k, *v);
-	 v = next_val (v))
+	 v = this->next_val (v))
       ;
     return v;
   }
 
   V *nextkeq (V *v) {
     const V &k = *v;
-    while ((v = next_val (v)) && !eq (k, *v))
+    while ((v = this->next_val (v)) && !eq (k, *v))
       ;
     return v;
   }
@@ -358,19 +372,19 @@ public:
   fhash () {}
   fhash (const E &e, const H &h, const F &k) : eq (e), hash (h), keyfn (k) {}
 
-  void insert (V *elm) { insert_val (elm, hash (keyfn (elm))); }
+  void insert (V *elm) { this->insert_val (elm, hash (keyfn (elm))); }
 
   V *operator[] (const K &k) const {
     V *v;
-    for (v = lookup_val (hash (k)); 
+    for (v = this->lookup_val (hash (k)); 
 	 v && !eq (k, keyfn (v));
-	 v = next_val (v)) 
+	 v = this->next_val (v)) 
     ;
     return v;
   }
   V *nextkeq (V *v) {
     const K &k = keyfn (v);
-    while ((v = next_val (v)) && !eq (k, keyfn (v)))
+    while ((v = this->next_val (v)) && !eq (k, keyfn (v)))
     ;
     return v;
   }

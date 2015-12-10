@@ -1,7 +1,7 @@
 
 Automatic Manpage Generation
 ----------------------------
-$Id: README 2 2003-09-24 14:35:33Z max $
+$Id$
 
 Manpages are generated via manpager.pl in the directory.  It takes
 as input sfs.texi and output a series of manpages for the various

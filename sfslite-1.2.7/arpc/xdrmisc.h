@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: xdrmisc.h 4124 2009-02-23 16:26:41Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -28,6 +28,7 @@
 
 #include "sysconf.h"
 #include "sfs_profiler.h"
+#include "wmstr.h"
 
 extern "C" {
 #define xdrproc_t sun_xdrproc_t
@@ -81,6 +82,7 @@ namespace sfs {
   typedef BOOL (*xdrproc_t) (XDR *, void *);
 }
 #include "rpctypes.h"
+#include "extensible_arpc.h"
 
 #ifdef __APPLE__
 # define XDROPS_KNRPROTO 1
@@ -189,7 +191,7 @@ xdr_getpadbytes (XDR *xdrs, void *p, size_t n)
 }
 
 inline bool
-rpc_traverse (XDR *xdrs, u_int32_t &obj)
+rpc_traverse (XDR *xdrs, u_int32_t &obj, RPC_FIELD)
 {
   switch (xdrs->x_op) {
   case XDR_ENCODE:
@@ -202,7 +204,7 @@ rpc_traverse (XDR *xdrs, u_int32_t &obj)
 }
 
 template<size_t n> inline bool
-rpc_traverse (XDR *xdrs, rpc_opaque<n> &obj)
+rpc_traverse (XDR *xdrs, rpc_opaque<n> &obj, RPC_FIELD)
 {
   switch (xdrs->x_op) {
   case XDR_ENCODE:
@@ -215,7 +217,7 @@ rpc_traverse (XDR *xdrs, rpc_opaque<n> &obj)
 }
 
 template<size_t max> inline bool
-rpc_traverse (XDR *xdrs, rpc_bytes<max> &obj)
+rpc_traverse (XDR *xdrs, rpc_bytes<max> &obj, RPC_FIELD)
 {
   switch (xdrs->x_op) {
   case XDR_ENCODE:
@@ -246,7 +248,7 @@ rpc_traverse (XDR *xdrs, rpc_bytes<max> &obj)
 }
 
 template<size_t max> inline bool
-rpc_traverse (XDR *xdrs, rpc_str<max> &obj)
+rpc_traverse (XDR *xdrs, rpc_str<max> &obj, RPC_FIELD)
 {
   switch (xdrs->x_op) {
   case XDR_ENCODE:
@@ -270,7 +272,7 @@ rpc_traverse (XDR *xdrs, rpc_str<max> &obj)
 }
 
 inline bool
-rpc_traverse (XDR *xdrs, str &obj)
+rpc_traverse (XDR *xdrs, str &obj, RPC_FIELD)
 {
   switch (xdrs->x_op) {
   case XDR_ENCODE:
@@ -374,6 +376,7 @@ RPC_PRINT_TYPE_DECL (type)
 
 #define RPCUNION_SET(type, field) field.select ()
 #define RPCUNION_TRAVERSE(type, field) return rpc_traverse (t, *obj.field)
+#define RPCUNION_TRAVERSE_2(type, field) rpc_traverse (t, *obj.field, #field)
 #define RPCUNION_STOMPCAST(type, field) field.Xstompcast ()
 #define RPCUNION_REC_STOMPCAST(type, field) \
   obj.field.Xstompcast (); return rpc_traverse (s, *obj.field)
@@ -405,6 +408,7 @@ struct xdrsuio : xdrbase {
   suio *uio ();
   const iovec *iov ();
   u_int iovcnt ();
+  void hold_onto (str s) { uio()->hold_onto (s); }
 };
 
 struct xdrmem : xdrbase {
@@ -416,7 +420,6 @@ struct xdrmem : xdrbase {
   }
 };
 
-inline const str &str2wstr (const str &s);
 template<class T> str
 xdr2str (const T &t, bool scrub = false)
 {
@@ -434,7 +437,7 @@ xdr2str (const T &t, bool scrub = false)
 template<class T> bool
 str2xdr (T &t, const str &s)
 {
-  xdrmem x (s, s.len ());
+  xdrmem x (s.cstr(), s.len ());
   XDR *xp = &x;
   return rpc_traverse (xp, t);
 }

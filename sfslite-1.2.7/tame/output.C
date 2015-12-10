@@ -44,7 +44,7 @@ outputter_t::output_line_number ()
     if (!_last_char_was_nl)
       b << "\n";
     b << "# " << _lineno << " \"" << _infn << "\"\n";
-    _output_str (b, false);
+    _output_str (b, NULL);
     _last_lineno = _lineno;
     _did_output = false;
   }
@@ -59,8 +59,7 @@ outputter_H_t::output_str (str s)
     output_line_number ();
     split (&v, x, s);
     for (u_int i = 0; i < v.size (); i++) {
-      // only output a newline on the last line
-      _output_str (v[i], (i == v.size () - 1 ? "\n" : " "));
+      _output_str (v[i], (i == v.size () - 1 ? NULL : " "));
     }
   } else {
     outputter_t::output_str (s);
@@ -87,7 +86,7 @@ outputter_t::output_str (str s)
       _do_output_line_number = false;
     }
 
-    _output_str (s, false);
+    _output_str (s, NULL);
     if (_mode == OUTPUT_PASSTHROUGH)
       _lineno += count_newlines (s);
   }

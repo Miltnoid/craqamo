@@ -1,4 +1,4 @@
-/* $Id: genpyc.C 3758 2008-11-13 00:36:00Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -1393,8 +1393,6 @@ punionmacrodefault (str prefix, const rpc_union *rs)
 static void
 dump_c_union (const rpc_sym *s)
 {
-  bool hasdefault = false;
-
   const rpc_union *rs = s->sunion.addr ();
   str ct = pyc_type (rs->id);
   str tct = rs->tagtype ; // pyc_type (rs->tagtype);
@@ -1404,8 +1402,6 @@ dump_c_union (const rpc_sym *s)
        << "  union {\n"
        << "    union_entry_base _base;\n";
   for (const rpc_utag *rt = rs->cases.base (); rt < rs->cases.lim (); rt++) {
-    if (!rt->swval)
-      hasdefault = true;
     if (rt->tagvalid && rt->tag.type != "void") {
       str type = rpc_decltype (&rt->tag);
       if (type[type.len ()-1] == '>')
@@ -1583,7 +1579,7 @@ dump_c_enum (const rpc_enum *rs, bool d)
     else if (lastval && (isdigit (lastval[0]) || lastval[0] == '-'
 			 || lastval[0] == '+')) {
      
-      long l = strtol (lastval, NULL, 0) + ctr ++;
+      long l = strtol (lastval.cstr(), NULL, 0) + ctr ++;
       b << l;
       ev = b;
       if (d)
@@ -1989,7 +1985,7 @@ makemodulename (str fname)
   static rxx x2 ("(.*?).[a-zA-Z]+");
   static rxx x3 ("([a-zA-Z0-9_]+)");
 
-  if ((p = strrchr (fname, '/')))
+  if ((p = strrchr (fname.cstr(), '/')))
     p++;
   else p = fname;
 
@@ -2166,7 +2162,7 @@ makehdrname (str fname)
 
   if (!x.match (fname)) {
     // old-style translation
-    if ((p = strrchr (fname, '/')))
+    if ((p = strrchr (fname.cstr(), '/')))
       p++;
     else p = fname;
     
@@ -2272,7 +2268,7 @@ makeguard (str fname)
   strbuf guard;
   const char *p;
 
-  if ((p = strrchr (fname, '/')))
+  if ((p = strrchr (fname.cstr(), '/')))
     p++;
   else p = fname;
 

@@ -1,6 +1,10 @@
 
 // -*- c++ -*-
 
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#include <utility>
+#endif
+
 #include "refcnt.h"
 #include "callback.h"
 #include "list.h"
@@ -382,8 +386,8 @@ namespace gc {
       return ret;
     }
 
-    aptr<T,V,G> operator++ (size_t s) { return (*this) += 1; }
-    aptr<T,V,G> operator-- (size_t s) { return (*this) -= 1; }
+    aptr<T,V,G> operator++ () { return (*this) += 1; }
+    aptr<T,V,G> operator-- () { return (*this) -= 1; }
 
     aptr<T,V,G> &operator+= (size_t s) 
     {
@@ -541,7 +545,7 @@ namespace gc {
 
     virtual redirector_t<T,G> aalloc (size_t sz) = 0;
     virtual bool gc_make_room (size_t sz) { return false; }
-    virtual void report (void) const {}
+    virtual void report (const char* v = NULL) const {}
     virtual void gc (lru_mgr_t *m) = 0;
     virtual bigobj_arena_t<T,G> *to_boa () { return NULL; }
     virtual smallobj_arena_t<T,G> *to_soa () { return NULL; }
@@ -588,7 +592,7 @@ namespace gc {
     size_t free_space () const;
     
     void sanity_check () const;
-    virtual void report (void) const;
+    virtual void report (const char*v = NULL) const;
 
     void debug_init () { _magic = magic; }
     void check() { assert (magic == _magic); }
@@ -797,24 +801,36 @@ namespace gc {
 
   //=======================================================================
 
-#define COMMA ,
-
   template<class T, class V = memptr_t, class G = nil::gc_ptr_t>
   class alloc {
   public:
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+    template<typename... Params>
+    explicit alloc (Params&&... args) {
+        redirector_t<V, G> r =
+            mgr_t<V, G>::get()->aalloc(sizeof(T));
+        if (r) {
+            (void) new (r.data ()) T (std::forward (args)...);
+            _p = ptr<T, V, G> (r);
+        }
+    }
+#else
+#define COMMA ,
+
     VA_TEMPLATE(explicit alloc ,					\
 		{ redirector_t<V COMMA G> r =				\
 		    mgr_t<V COMMA G>::get()->aalloc(sizeof(T));		\
 		  if (r) {						\
 		    (void) new (r.data ()) T ,				\
 		      ; _p = ptr<T COMMA V COMMA G> (r); } } )
+
+#undef COMMA
+#endif
     operator ptr<T,V,G>&() { return _p; }
     operator const ptr<T,V,G> &() const { return _p; }
   private:
     ptr<T,V,G> _p;
   };
-
-#undef COMMA
 
   //=======================================================================
 

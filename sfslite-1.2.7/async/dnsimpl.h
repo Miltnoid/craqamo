@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: dnsimpl.h 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -31,7 +31,6 @@
 
 class resolver;
 class dnsreq {
-  int ntries;
   int srchno;
 
 public:

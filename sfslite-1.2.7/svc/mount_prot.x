@@ -1,4 +1,4 @@
-/* $Id: mount_prot.x 1754 2006-05-19 20:59:19Z max $ */
+/* $Id$ */
 
 const MNTPATHLEN = 1024;	/* Maximum bytes in a path name */
 const MNTNAMLEN = 255;		/* Maximum bytes in a name */

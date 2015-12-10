@@ -1,5 +1,8 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 3462 2008-06-25 20:54:38Z max $
+# $Id$
+
+.T.C:
+	$(TAME) -o $@ $< || (rm -f $@ && false)
 
 LDADD = $(LIBTAME) $(LIBSFSCRYPT) $(LIBARPC) $(LIBSAFEPTR) $(LIBASYNC) $(LIBGMP) 
 
@@ -21,6 +24,7 @@ TESTS = test_aes \
 	test_rabin \
 	test_sha1 \
 	test_srp \
+	test_tame \
 	test_passfd \
 	test_tiger \
 	test_timecb \
@@ -30,7 +34,8 @@ TESTS = test_aes \
 	test_vec \
 	test_sp1 \
 	test_sp2 \
-	test_sp3
+	test_sp3 \
+	test_rxx
 
 check_PROGRAMS = $(TESTS)
 
@@ -62,6 +67,9 @@ test_vec_SOURCES = test_vec.C
 test_sp1_SOURCES = test_sp1.C
 test_sp2_SOURCES = test_sp2.C
 test_sp3_SOURCES = test_sp3.C
+test_rxx_SOURCES = test_rxx.C
+test_tame_CXXFLAGS = --std=gnu++11 $(AM_CXXFLAGS)
+test_tame_SOURCES = test_tame.T
 
 $(check_PROGRAMS): $(LDEPS)
 

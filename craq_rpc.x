@@ -12,6 +12,11 @@ enum event_type {
 	EVENT_DEL = 1
 };
 
+struct rpc_mytimeval {
+	unsigned mtv_sec;
+	unsigned mtv_usec;
+};
+
 struct rpc_node {
 	rpc_string ip;
 	unsigned port;
@@ -56,7 +61,7 @@ struct head_write_arg {
 struct propagate_arg {
  	rpc_hash chain;
  	rpc_hash id;
- 	unsigned ver;
+ 	rpc_mytimeval ver;
  	blob data;
  	bool committed;
 };
@@ -64,7 +69,7 @@ struct propagate_arg {
 struct ack_arg {
  	rpc_hash chain;
  	rpc_hash id;
- 	unsigned ver;
+ 	rpc_mytimeval ver;
 };
  
 struct query_obj_ver_arg {
@@ -73,8 +78,8 @@ struct query_obj_ver_arg {
 };
  
 struct query_obj_ver_ret {
- 	int hist;
- 	int pend;
+ 	rpc_mytimeval hist;
+ 	rpc_mytimeval pend;
 };
  
 struct tail_read_arg {
@@ -91,7 +96,7 @@ struct tail_read_ex_arg {
 struct tail_read_ex_ret {
  	blob data;
  	bool dirty;
- 	unsigned ver;
+ 	rpc_mytimeval ver;
 };
  
 enum add_chain_ret {
@@ -110,7 +115,7 @@ struct test_and_set_arg {
 	rpc_hash chain;
 	rpc_hash id;
 	blob data;
-	unsigned ver;
+	rpc_mytimeval ver;
 };
  
 program CHAIN_NODE {

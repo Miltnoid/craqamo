@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: axprt.h 4728 2009-10-16 20:08:40Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -39,6 +39,7 @@ public:
   const bool reliable;
   const bool connected;
   const size_t socksize;
+public:
 
   typedef callback<void, const char *, ssize_t,
     const sockaddr *>::ptr recvcb_t;
@@ -52,7 +53,7 @@ public:
   virtual void poll () = 0;
   virtual int getreadfd () = 0;
   virtual int getwritefd () = 0;
-
+  
   void send (const void *data, size_t len, const sockaddr *dest) {
     iovec iov = {(char *) data, len};
     sendv (&iov, 1, dest);
@@ -109,6 +110,7 @@ protected:
   bool _foosp; // fail on oversized packet
   
   u_int64_t raw_bytes_sent;
+  time_t _last_suio_clear;
 
   void wrsync ();
   void sendbreak (cbv::ptr);

@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: err.h 3161 2008-01-14 16:55:36Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -88,9 +88,13 @@ struct traceobj : public strbuf {
   const char *prefix;
   const bool dotime;
   bool doprint;
+  int fd;
 
-  traceobj (int current_level, const char *prefix = "", bool dotime = false)
-    : current_level (current_level), prefix (prefix), dotime (dotime) {}
+  explicit traceobj (int current_level, const char *prefix = "", 
+	    bool dotime = false, int f = -1)
+    : current_level (current_level), prefix (prefix), 
+      dotime (dotime), fd (f) {}
+
   ~traceobj ();
   void init ();
 
@@ -127,7 +131,7 @@ operator<< (const warnobj &sb, const str &s)
   if (s)
     suio_print (sb.tosuio (), s);
   else {
-    sb.cat ("(null)", true);
+    sb << "(null)";
   }
   return sb;
 }

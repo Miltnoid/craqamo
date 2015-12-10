@@ -1,4 +1,4 @@
-/* $Id: rpcc.C 3274 2008-05-17 20:10:40Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -29,6 +29,7 @@ bhash<str> ids;
 const str shell ("/bin/sh");
 static str outfile;
 str python_module_name;
+bool guess_defines;
 
 str
 rpcprog (const rpc_program *rp, const rpc_vers *rv)
@@ -76,9 +77,9 @@ setstdout ()
 {
   if (outfile[0] != '|') {
     int fd;
-    unlink (outfile);
-    if ((fd = open (outfile, O_CREAT|O_WRONLY, 0666)) < 0) {
-      perror (outfile);
+    unlink (outfile.cstr());
+    if ((fd = open (outfile.cstr(), O_CREAT|O_WRONLY, 0666)) < 0) {
+      perror (outfile.cstr());
       exit (1);
     }
     if (fd != 1) {
@@ -103,7 +104,8 @@ setstdout ()
       dup2 (fds[1], 0);
       if (fds[1])
         close (fds[1]);
-      execl (shell, shell, "-c", outfile.cstr () + 1, (char *) NULL);
+      execl (shell.cstr(), shell.cstr(), "-c", outfile.cstr () + 1,
+             (char *) NULL);
       exit (1);
     }
     close (fds[1]);
@@ -118,7 +120,7 @@ static void
 cleanup ()
 {
   if (outfile)
-    unlink (outfile);
+    unlink (outfile.cstr());
 }
 
 static void
@@ -156,6 +158,8 @@ main (int argc, char **argv)
   av.push_back ("-DRPCC");
   av.push_back (NULL);
 
+  guess_defines = true;
+
   for (an = 1; an < argc; an++) {
     char *arg = argv[an];
     int arglen = strlen (arg);
@@ -189,6 +193,8 @@ main (int argc, char **argv)
       python_module_name = argv[an];
     else if (!strncmp (arg, "-n", 2) && !python_module_name && arg[2])
       python_module_name = arg + 2;
+    else if (!strcmp (arg, "-G")) 
+      guess_defines = false;
     else 
       usage ();
   }

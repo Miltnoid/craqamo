@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: itree.h 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -250,7 +250,7 @@ public:
 #else
   V *operator[] (const K &k) {
     // return search (wrap (this, &kvcmp, &k));
-    return search (skvcmp, &kcmp, &k);
+    return this->search (skvcmp, &kcmp, &k);
   }
 #endif
 };

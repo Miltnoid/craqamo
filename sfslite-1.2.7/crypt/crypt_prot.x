@@ -1,4 +1,4 @@
-/* $Id: crypt_prot.x 2330 2006-11-19 18:18:00Z max $ */
+/* $Id$ */
 
 /*
  * This file was written by David Mazieres.  Its contents is

@@ -1,4 +1,4 @@
-/* $Id: err.C 3758 2008-11-13 00:36:00Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -119,7 +119,7 @@ timestring ()
   clock_gettime (CLOCK_REALTIME, &ts);
   static str buf;
   buf = strbuf ("%d.%06d", int (ts.tv_sec), int (ts.tv_nsec/1000));
-  return buf;
+  return buf.cstr();
 }
 
 /*
@@ -136,7 +136,7 @@ warnobj::warnobj (int f)
       cat (progname).cat ("[").cat (progpid).cat ("]: ");
     } else {
       cat (progname).cat (": ");
-	}
+    }
   }
   if (flags & panicflag)
     cat ("PANIC: ");
@@ -178,6 +178,16 @@ traceobj::init ()
   cat (prefix);
   if (dotime)
     cat (timestring ()).cat (" ");
+
+  if (fd >= 0) {
+    struct sockaddr_in sin;
+    socklen_t sinlen = sizeof (sin);
+    if (getpeername (fd, (struct sockaddr *)&sin, &sinlen) == 0) {
+      const char *ip = inet_ntoa (sin.sin_addr);
+      int port = ntohs (sin.sin_port);
+      cat (ip).cat (":").cat(port).cat (" ");
+    }
+  }
 }
 
 traceobj::~traceobj ()

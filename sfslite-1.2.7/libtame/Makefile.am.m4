@@ -43,9 +43,11 @@ tame_src(lock)
 tame_src(io)
 tame_src(aio)
 tame_src(rpcserver)
+tame_src(pipeline3)
 tame_src(connectors)
 tame_hdr(tame_connectors)
 tame_hdr(tame_nlock)
+tame_hdr(tame_redundant)
 
 dnl
 dnl
@@ -81,6 +83,7 @@ libtame_la_SOURCES = \
 	thread.C \
 	trigger.C \
 	event.C \
+	profiler.C \
 	tame_out 
 
 libtame_la_LDFLAGS = $(LIBTOOL_VERSION_INFO)
@@ -112,7 +115,9 @@ sfsinclude_HEADERS = \
 	tame_aio.h \
 	tame_rpcserver.h \
 	tame_rpc.h \
-	tame_out_h
+	tame_profiler.h \
+	tame_pipeline3.h \
+	tame_out_h 
 
 .PHONY: tameclean
 

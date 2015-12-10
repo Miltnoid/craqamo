@@ -1,5 +1,5 @@
 #!/bin/sh -e
-# $Id: striplib 2 2003-09-24 14:35:33Z max $
+# $Id$
 
 # This shell script strips the debugging information out of a library,
 # to make it smaller.

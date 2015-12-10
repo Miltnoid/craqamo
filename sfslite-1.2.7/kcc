@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: kcc 2 2003-09-24 14:35:33Z max $
+# $Id$
 
 # This is a wrapper script around KCC.  To use, install it as kcc and
 # k++, then configure this package with

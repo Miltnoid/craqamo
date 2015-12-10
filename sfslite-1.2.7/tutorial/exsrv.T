@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: exsrv.T 3495 2008-08-07 00:45:59Z max $ */
+/* $Id$ */
 
 #include "ex_prot.h"
 #include "async.h"

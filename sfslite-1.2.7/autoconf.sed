@@ -1,4 +1,4 @@
-# $Id: autoconf.sed 4100 2009-02-19 15:01:52Z max $
+# $Id$
 
 1i\
 #ifndef _ARPCCONF_H_\

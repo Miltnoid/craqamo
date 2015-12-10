@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: ex4.T 2648 2007-03-29 19:33:14Z max $ */
+/* $Id$ */
 
 #include "tame.h"
 #include "arpc.h"
@@ -65,6 +65,17 @@ static void finish (bool rc)
   exit (rc ? 0 : -1);
 }
 
+static void play_with_rpc_vectors ()
+{
+  my_vec_t v1, v2;
+  vec<u_int32_t> v3;
+  v1.push_back (3); v1.push_back (4);
+  v2.push_back (100);
+  v3.push_back (1000);
+  v1 += v2;
+  v1 += v3;
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -72,6 +83,7 @@ main (int argc, char *argv[])
   if (argc != 3 || !convertint (argv[2], &port))
     fatal << "usage: ex2 <hostname> <port>\n";
   
+  play_with_rpc_vectors ();
   dostuff (argv[1], port, wrap (finish));
   amain ();
 }

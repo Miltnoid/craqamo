@@ -1,4 +1,4 @@
-/* $Id: test_passfd.C 3256 2008-05-14 04:02:23Z max $ */
+/* $Id$ */
 
 #include "async.h"
 

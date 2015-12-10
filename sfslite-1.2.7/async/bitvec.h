@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: bitvec.h 3373 2008-06-04 14:31:12Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -55,7 +55,7 @@ protected:
 #define bcheck(n) assert ((size_t) (n) < nbits)
 #define rcheck(s, e) assert (s <= e && e <= nbits)
 #else /* !CHECK_BOUNDS */
-#define bcheck(n)
+#define bcheck(n) assert(true)
 #define rcheck(s, e)
 #endif /* !CHECK_BOUNDS */
 

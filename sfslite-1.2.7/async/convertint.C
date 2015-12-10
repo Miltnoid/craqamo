@@ -1,4 +1,4 @@
-/* $Id: convertint.C 3758 2008-11-13 00:36:00Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -63,12 +63,12 @@
  * alphabets and digits are each contiguous.
  */
 int64_t
-strtoi64 (const char *nptr, char **endptr, register int base)
+strtoi64 (const char *nptr, char **endptr, int base)
 {
-  register const char *s;
-  register int64_t acc, cutoff;
-  register int c;
-  register int neg, any, cutlim;
+  const char *s;
+  int64_t acc, cutoff;
+  int c;
+  int neg, any, cutlim;
 
   /*
    * Skip white space and pick up leading +/- sign if any.

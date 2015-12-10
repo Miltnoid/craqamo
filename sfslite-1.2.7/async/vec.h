@@ -1,5 +1,5 @@
 // -*- c++ -*-
-/* $Id: vec.h 3352 2008-05-30 14:50:22Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -29,6 +29,10 @@
 #include "stllike.h"
 #include "array.h"
 #include "msb.h"
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#include <utility>
+#include <initializer_list>
+#endif
 
 size_t vec_resize_fn (u_int nwanted, u_int nalloc, int objid);
 class vec_resizer_t {
@@ -118,10 +122,17 @@ protected:
     { return *new (implicit_cast<void *> (&e)) elm_t; }
   static elm_t &cconstruct (elm_t &e, const elm_t &v)
     { return *new (implicit_cast<void *> (&e)) elm_t (v); }
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  template<typename... Params>
+  static elm_t &vconstruct(elm_t& e, Params&&... p) { 
+      return *new(implicit_cast<void *>(&e)) elm_t(std::forward<Params>(p)...); 
+  }
+#endif
+
   static void destroy (elm_t &e) { e.~elm_t (); }
 
   void init () { lastp = firstp = basep = def_basep (); limp = def_limp (); }
-  void del () { while (firstp < lastp) firstp++->~elm_t (); bfree (basep); }
+  void del () { while (firstp < lastp) firstp++->~elm_t (); this->bfree (basep); }
 
 #define append(v)						\
 do {								\
@@ -143,6 +154,14 @@ do {								\
 public:
   vec () { init (); }
   vec (const vec &v) { init (); append (v); }
+
+  #ifdef __GXX_EXPERIMENTAL_CXX0X__
+  explicit vec(std::initializer_list<T> l) : vec() {
+    reserve(l.size());
+    for (auto v:l) {push_back(v); }
+  }
+  #endif
+
   template<size_t NN> vec (const vec<T, NN> &v) { init (); append (v); }
   ~vec () { del (); }
   void clear () { del (); init (); }
@@ -164,7 +183,7 @@ public:
       elm_t *obasep = basep;
       move (static_cast<elm_t *> (txmalloc (nalloc * sizeof (elm_t))));
       limp = basep + nalloc;
-      bfree (obasep);
+      this->bfree (obasep);
     }
     else
       move (basep);
@@ -186,6 +205,11 @@ public:
   const elm_t *base () const { return firstp; }
   elm_t *lim () { return lastp; }
   const elm_t *lim () const { return lastp; }
+  elm_t *begin () { return firstp; }
+  const elm_t *begin () const { return firstp; }
+  elm_t *end () { return lastp; }
+  const elm_t *end () const { return lastp; }
+
   size_t size () const { return lastp - firstp; }
   bool empty () const { return lastp == firstp; }
 
@@ -200,6 +224,25 @@ public:
   elm_t &push_back () { reserve (1); return construct (*lastp++); }
   elm_t &push_back (const elm_t &e)
     { reserve (1); return cconstruct (*lastp++, e); }
+
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  template<typename... Params>
+  elm_t &emplace_back (Params&&... p) 
+    { reserve (1); return vconstruct (*lastp++, std::forward<Params>(p)...); }
+#endif
+
+  void reverse () 
+  {
+    ssize_t right = size () - 1;
+    ssize_t left = 0;
+    while (left < right) {
+      elm_t tmp = (*this)[left];
+      (*this)[left] = (*this)[right];
+      (*this)[right] = tmp;
+      left++;
+      right--;
+    }
+  }
 
   elm_t pop_back () { zcheck (); return destroy_return (*--lastp); }
   void popn_back (size_t n) {

@@ -32,6 +32,7 @@ tamed void HttpStorage::getFD(cbi ret_int) {
 	}
 	
 	if (conn_pool.empty()) {
+                LOG_DEBUG << "port: " << port << "\n";
 		twait { tcpconnect ("127.0.0.1", port, mkevent(fd)); }
 		LOG_DEBUG << "fd: " << fd << "\n";
 		TRIGGER(ret_int, fd);
@@ -119,7 +120,7 @@ tamed void HttpStorage::get(ID_Value key, cb_blob ret_blob) {
 		
 		//write/flush the GET request
 		while(data.tosuio()->resid()) {
-			twait { tame::waitwrite(fd, mkevent()); }
+			twait { tame::waitwrite(fd, mkevent_o()); }
 			if (data.tosuio()->output(fd) < 0) {
 				LOG_DEBUG << "error writing to socket";
 				twait { getFD (mkevent(fd)); }
@@ -128,7 +129,7 @@ tamed void HttpStorage::get(ID_Value key, cb_blob ret_blob) {
 		
 		//read the response until we have all of it
 		while(true) {
-			twait { tame::waitread (fd, mkevent()); }
+			twait { tame::waitread (fd, mkevent_o()); }
 			if( (rc = resp.tosuio()->input(fd)) < 0 && errno != EAGAIN) {
 				LOG_DEBUG << "error reading from socket"; //this happens if file descriptor has expired
 				break;
@@ -208,7 +209,7 @@ tamed void HttpStorage::set(ID_Value key, const blob* data, cbb ret_blob) {
 		if (fd >= 0) {
 			LOG_WARN << "Connection succeeded!\n";
 		} else {
-			LOG_FATAL << "Connection failed!\n";
+			LOG_FATAL << "Connection failed!!!!!!\n";
 		}
 		
 		start = data->base();
@@ -222,7 +223,7 @@ tamed void HttpStorage::set(ID_Value key, const blob* data, cbb ret_blob) {
 		request << "\r\n\r\n";
 		request << start;
 		while(request.tosuio()->resid()) {
-			twait { tame::waitwrite(fd, mkevent()); }
+			twait { tame::waitwrite(fd, mkevent_o()); }
 			if(request.tosuio()->output(fd) < 0) {
 				LOG_DEBUG << "error writing to socket\n";
 				twait { getFD (mkevent(fd)); }
@@ -230,7 +231,7 @@ tamed void HttpStorage::set(ID_Value key, const blob* data, cbb ret_blob) {
 		}
 		
 		while(true) {
-			twait { tame::waitread (fd, mkevent()); }
+			twait { tame::waitread (fd, mkevent_o()); }
 			if( (rc = resp.tosuio()->input(fd)) < 0 && errno != EAGAIN) {
 				LOG_DEBUG << "error reading from socket\n";
 				break;
@@ -325,7 +326,7 @@ tamed void HttpStorage::del(ID_Value key, cbb ret_bool) {
 		request << key.toString().c_str();
 		request << " HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
 		while(request.tosuio()->resid()) {
-			twait { tame::waitwrite(fd, mkevent()); }
+			twait { tame::waitwrite(fd, mkevent_o()); }
 			if(request.tosuio()->output(fd) < 0) {
 				LOG_DEBUG << "error writing to socket\n";
 				twait { getFD (mkevent(fd)); }
@@ -333,7 +334,7 @@ tamed void HttpStorage::del(ID_Value key, cbb ret_bool) {
 		}
 		
 		while(true) {
-			twait { tame::waitread (fd, mkevent()); }
+			twait { tame::waitread (fd, mkevent_o()); }
 			if( (rc = resp.tosuio()->input(fd)) < 0 && errno != EAGAIN) {
 				LOG_DEBUG << "error reading from socket\n";
 				break;

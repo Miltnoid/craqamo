@@ -1,4 +1,4 @@
-/* $Id: test_bbuddy.C 3943 2009-01-16 23:46:20Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -25,7 +25,10 @@
 #include "arc4.h"
 #include "bbuddy.h"
 
+#ifndef __STDC_FORMAT_MACROS
 #define __STDC_FORMAT_MACROS
+#endif
+
 #include <inttypes.h>
 
 

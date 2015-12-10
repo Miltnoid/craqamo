@@ -1,6 +1,6 @@
 
 // -*-c++-*-
-/* $Id: tame_event.h 4618 2009-09-15 20:21:17Z max $ */
+/* $Id$ */
 
 #ifndef _LIBTAME_TAME_EVENT_H_
 #define _LIBTAME_TAME_EVENT_H_
@@ -121,8 +121,12 @@ class event {
 public:
   typedef struct ref<_event<T1,T2,T3> > ref;
   typedef struct ptr<_event<T1,T2,T3> > ptr;
-};
 
+public:
+  typedef T1 type1;
+  typedef T2 type2;
+  typedef T3 type3;
+};
 
 #ifdef WRAP_DEBUG
 # define CALLBACK_ARGS(x) "???", x, x

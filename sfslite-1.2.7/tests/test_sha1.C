@@ -1,4 +1,4 @@
-/* $Id: test_sha1.C 3256 2008-05-14 04:02:23Z max $ */
+/* $Id$ */
 
 #define USE_PCTR 0
 

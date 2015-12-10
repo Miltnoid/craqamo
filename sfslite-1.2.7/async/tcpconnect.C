@@ -1,4 +1,4 @@
-/* $Id: tcpconnect.C 5124 2010-02-10 22:59:54Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -23,6 +23,27 @@
 
 #include "async.h"
 #include "dns.h"
+#include "init.h"
+
+//-----------------------------------------------------------------------------
+
+bool tcpconnect_debug = false;
+int tcpconnect_conn_rets = 0;
+INITFN(init_env);
+static void
+init_env() {
+    if (char *p = safegetenv ("SFS_TCPCONNECT_DEBUG"))
+        tcpconnect_debug = (bool) atoi (p);
+    if (char *p = safegetenv ("SFS_TCPCONNECT_CONN_RETRIES"))
+        tcpconnect_conn_rets = atoi (p);
+}
+
+#define TCP_DEBUG(s) \
+    if (tcpconnect_debug) { \
+        warn << "SFS: TCP_DEBUG: " << s << "\n"; \
+    }
+
+//-----------------------------------------------------------------------------
 
 struct tcpconnect_t {
   virtual ~tcpconnect_t () {}
@@ -43,7 +64,7 @@ struct tcpportconnect_t : tcpconnect_t {
   void reply (int s) { if (s == fd) fd = -1; (*cb) (s); delete this; }
   void fail (int error) { errno = error; reply (-1); }
   void connect_to_name (str hostname, bool dnssearch);
-  void name_cb (ptr<hostent> h, int err);
+  void name_cb (str hn, ptr<hostent> h, int err);
   void connect_to_in_addr (const in_addr &a);
   void connect_cb ();
 };
@@ -74,48 +95,80 @@ tcpportconnect_t::~tcpportconnect_t ()
 void
 tcpportconnect_t::connect_to_name (str hostname, bool dnssearch)
 {
-  dnsp = dns_hostbyname (hostname, wrap (this, &tcpportconnect_t::name_cb),
-			 dnssearch);
+  dnsp = dns_hostbyname (hostname, wrap (this, &tcpportconnect_t::name_cb,
+              hostname), dnssearch);
 }
 
 void
-tcpportconnect_t::name_cb (ptr<hostent> h, int err)
+tcpportconnect_t::name_cb (str hn, ptr<hostent> h, int err)
 {
   dnsp = NULL;
   if (!h) {
-    if (dns_tmperr (err))
-      fail (EAGAIN);
-    else
-      fail (ENOENT);
+    if (dns_tmperr (err)) {
+        TCP_DEBUG("DNS retryable error");
+        fail (EAGAIN);
+    } else {
+        TCP_DEBUG("DNS no-entry error");
+        fail (ENOENT);
+    }
+
+    TCP_DEBUG("dns_hostbyname(\"" << hn << "\"): " << dns_strerror(err));
     return;
   }
   if (namep)
     *namep = h->h_name;
-  connect_to_in_addr (*(in_addr *) h->h_addr);
+
+  in_addr *a = reinterpret_cast<in_addr *> (h->h_addr);
+  TCP_DEBUG(str("DNS resolution yiedled ") << inet_ntoa (*a));
+
+  connect_to_in_addr (*a);
 }
 
 void
 tcpportconnect_t::connect_to_in_addr (const in_addr &a)
 {
-  sockaddr_in sin;
-  bzero (&sin, sizeof (sin));
-  sin.sin_family = AF_INET;
-  sin.sin_port = htons (port);
-  sin.sin_addr = a;
 
-  fd = inetsocket (SOCK_STREAM);
-  if (fd < 0) {
+    size_t max_retries = tcpconnect_conn_rets; 
+    sockaddr_in sin;
+    bzero (&sin, sizeof (sin));
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons (port);
+    sin.sin_addr = a;
+
+    for (size_t retry = 0; retry <= max_retries; retry++) {
+        fd = inetsocket (SOCK_STREAM);
+        if (fd < 0) {
+            TCP_DEBUG(str("inetsocket: ") << strerror(errno));
+            delaycb (0, wrap (this, &tcpportconnect_t::fail, errno));
+            return;
+        }
+        make_async (fd);
+        close_on_exec (fd);
+        if (connect (fd, (sockaddr *) &sin, sizeof (sin)) < 0 
+            && errno != EINPROGRESS) {
+
+            TCP_DEBUG(str("connect: ") << strerror(errno) );
+
+            // MM: If we are binding to ports using SO_REUSEADDR, then 
+            // it's possible we will try to connect() to a 4-tuple that
+            // is already in use. If that is the case, just try again.
+            // 
+            // Note: This will just be a failure in the default case
+            // where max_retries == 0
+            if (errno == EADDRINUSE || errno == EADDRNOTAVAIL) {
+                TCP_DEBUG("connect: retrying bind()");
+                continue;
+            }
+
+            delaycb (0, wrap (this, &tcpportconnect_t::fail, errno));
+            return;
+        }
+
+        fdcb (fd, selwrite, wrap (this, &tcpportconnect_t::connect_cb));
+        return;
+    }
+
     delaycb (0, wrap (this, &tcpportconnect_t::fail, errno));
-    return;
-  }
-  make_async (fd);
-  close_on_exec (fd);
-  if (connect (fd, (sockaddr *) &sin, sizeof (sin)) < 0
-      && errno != EINPROGRESS) {
-    delaycb (0, wrap (this, &tcpportconnect_t::fail, errno));
-    return;
-  }
-  fdcb (fd, selwrite, wrap (this, &tcpportconnect_t::connect_cb));
 }
 
 void
@@ -132,21 +185,28 @@ tcpportconnect_t::connect_cb ()
 
   int err = 0;
   sn = sizeof (err);
-  getsockopt (fd, SOL_SOCKET, SO_ERROR, (char *) &err, &sn);
-  fail (err ? err : ECONNREFUSED);
+  int rv = getsockopt (fd, SOL_SOCKET, SO_ERROR, (char *) &err, &sn);
+  err = err ? err : ECONNREFUSED;
+  TCP_DEBUG(str("connect_cb: rv: ") << rv
+            << " errno: " << strerror(errno) << " (" << errno << ")"
+            << " err:  " << strerror(err) << " (" << err << ")");
+  fail (err);
 }
 
 tcpconnect_t *
 tcpconnect (in_addr addr, u_int16_t port, cbi cb)
 {
-  return New tcpportconnect_t (addr, port, cb);
+    TCP_DEBUG(str("tcpconnect: connect to ") << inet_ntoa (addr) << ":" 
+              << port);
+    return New tcpportconnect_t (addr, port, cb);
 }
 
 tcpconnect_t *
 tcpconnect (str hostname, u_int16_t port, cbi cb,
 	    bool dnssearch, str *namep)
 {
-  return New tcpportconnect_t (hostname, port, cb, dnssearch, namep);
+    TCP_DEBUG(str("tcpconnect: connect to ") << hostname << ":" << port);
+    return New tcpportconnect_t (hostname, port, cb, dnssearch, namep);
 }
 
 void
@@ -209,7 +269,7 @@ tcpsrvconnect_t::nextsrv (bool timeout)
     addrhint **hint;
     for (hint = srvl->s_hints;
 	 *hint && ((*hint)->h_addrtype != AF_INET
-		   || strcasecmp ((*hint)->h_name, name));
+            || strcasecmp ((*hint)->h_name, name.cstr()));
 	 hint++)
       ;
     if (*hint) {
@@ -276,7 +336,7 @@ tcpsrvconnect_t::tcpsrvconnect_t (str name, str s, cbi cb, u_int16_t dp,
     error (0), srvlp (sp), namep (np)
 {
   areq = dns_hostbyname (name, wrap (this, &tcpsrvconnect_t::dnsacb), search);
-  srvreq = dns_srvbyname (name, "tcp", s,
+  srvreq = dns_srvbyname (name.cstr(), "tcp", s.cstr(),
 			  wrap (this, &tcpsrvconnect_t::dnssrvcb), search);
 }
 

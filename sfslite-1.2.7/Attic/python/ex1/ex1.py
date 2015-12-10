@@ -2,7 +2,7 @@
 #
 # simple test program
 #
-# $Id: ex1.py 868 2005-05-16 19:39:22Z max $
+# $Id$
 #
 
 import async

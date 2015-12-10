@@ -1,5 +1,6 @@
 
 #include "tame.h"
+#include "keyfunc.h"
 #include "rxx.h"
 #include <ctype.h>
 
@@ -65,21 +66,21 @@ void element_list_t::output (outputter_t *o)
 #define TAME_PREFIX           "__tame_"
 
 str
-type_t::type_without_pointer () const
+type_t::type_without_pointer (bool usetmpl) const
 {
   strbuf b;
   b << _base_type;
-  if (_template_args)
+  if (usetmpl && _template_args)
     b << _template_args << " ";
   return b;
 }
 
 str
-type_t::mk_ptr () const
+type_t::mk_ptr (bool usetmpl) const
 {
   my_strbuf_t b;
   b << "ptr<";
-  b.mycat (type_without_pointer()) << " >";
+  b.mycat (type_without_pointer(usetmpl)) << " >";
   return b;
 }
 
@@ -126,10 +127,13 @@ type_t::to_str_w_template_args (bool p) const
 }
 
 str
-var_t::decl () const
+var_t::decl (bool usetmpl) const
 {
   strbuf b;
-  b << _type.to_str_w_template_args () << _name;
+  strbuf tyname;
+
+  tyname << ((usetmpl) ? _type.to_str_w_template_args() : _type.to_str());
+  b << tyname << _name;
   if (_initializer) {
     b << _initializer->output_in_declaration ();
   }
@@ -159,8 +163,9 @@ str
 var_t::ref_decl () const
 {
   my_strbuf_t b;
-  b.mycat (_type.to_str ());
-  if (!_type.is_ref ()) {
+  // b.mycat (_type.to_str ());
+  b.mycat ("auto &");
+  if (false && !_type.is_ref ()) {
     if (_initializer) {
       b.mycat (_initializer->ref_prefix ());
     } else {
@@ -196,18 +201,28 @@ array_initializer_t::ref_prefix () const
 }
 
 str
-mangle (const str &in)
+mangle (const str &in, const str &loc)
 {
   const char *i;
   char *o;
-  mstr m (in.len ());
+  mstr m (in.len () + 10);
   for (i = in.cstr (), o = m.cstr (); *i; i++) {
     if (!isspace (*i)) {
-      *o = (*i == ':' || *i == '<' || *i == '>' || *i == ',') ? '_' : *i;
+      switch(*i) {
+        case ':': case '<': case '>': case ',': case '.': *o = '_'; break;
+        default: *o = *i;
+      }
       o++;
     }
   }
-  m.setlen (o - m.cstr ());
+
+  // Make distcc happy by only looking at the basename
+  const char *loc_start = strrchr(loc.cstr(), '/');
+  if (!loc_start) {
+    loc_start = loc.cstr();
+  }
+  snprintf(o , 10, "_%08x", hash_string(loc_start));
+  m.setlen (o + 9 - m.cstr ());
   return m;
 }
 
@@ -358,10 +373,13 @@ str
 tame_fn_t::decl_casted_closure (bool do_lhs) const
 {
   strbuf b;
+  bool actual_tmpl = bool(_template);
   if (do_lhs) {
     b << "  " << _closure.decl ()  << " =\n";
   }
-  b << "    reinterpret_cast<" << _closure.type ().to_str_w_template_args () 
+  strbuf tyname = (actual_tmpl) ? _closure.type().to_str_w_template_args() : 
+      _closure.type().to_str();
+  b << "    reinterpret_cast<" << tyname 
     << "> (static_cast<closure_t *> (" << closure_generic ().name () << "));";
   return b;
 }
@@ -540,7 +558,7 @@ tame_fn_t::output_closure (outputter_t *o)
   my_strbuf_t b;
   output_mode_t om = o->switch_to_mode (OUTPUT_TREADMILL);
 
-  if (_template) {
+  if (_template && !is_template_spec()) {
     b.mycat (template_str ()) << "\n";
   }
 
@@ -563,24 +581,22 @@ tame_fn_t::output_closure (outputter_t *o)
   if (slfargs) slfargs->paramlist (b, DECLARATIONS);
 
   b << ") : closure_t (\"" << state->infile_name () << "\", \"" 
-    << _name << "\"), "
+    << _name << "\", " << _lineno << ")"
     ;
 
   if (need_self ()) {
-    str s = _self.name ();
-    b.mycat (s) << " (";
-    b.mycat (s) << "), ";
+      b << ", ";
+      str s = _self.name ();
+      b.mycat (s) << " (";
+      b.mycat (s) << ")";
   }
 
-  b << " _stack ("
-    ;
-
-  if (slfargs) slfargs->paramlist (b, NAMES);
-
-  b << "), _args ("
-    ;
-
+  b << ", _args (";
   if (_args) _args->paramlist (b, NAMES);
+  b << ")";
+
+  b << ", _stack (";
+  if (slfargs) slfargs->paramlist (b, NAMES);
   b << ")";
 
   b << " {}\n\n";
@@ -591,6 +607,27 @@ tame_fn_t::output_closure (outputter_t *o)
   }
 
   output_reenter (b);
+
+  // output the argument capture structure
+  b << "\n"
+    << "  struct args_t {\n"
+    << "    args_t (" ;
+  if (_args && _args->size ()) 
+    _args->paramlist (b, DECLARATIONS);
+  b << ")";
+  if (_args && _args->size ()) {
+    b << " : ";
+    _args->initialize (b, true);
+  }
+  b << " {}\n";
+  if (_args)  _args->declarations (b, "    ");
+  b << "  };\n";
+
+  if (need_self ()) {
+    b << "  ";
+    b.mycat (_self.decl ()) << ";\n";
+  }
+  b << "  args_t _args;\n" ;
 
   // output the stack structure
   b << "  struct stack_t {\n"
@@ -614,27 +651,7 @@ tame_fn_t::output_closure (outputter_t *o)
   _stack_vars.declarations (b, "    ");
   b << "  };\n";
  
-  // output the argument capture structure
-  b << "\n"
-    << "  struct args_t {\n"
-    << "    args_t (" ;
-  if (_args && _args->size ()) 
-    _args->paramlist (b, DECLARATIONS);
-  b << ")";
-  if (_args && _args->size ()) {
-    b << " : ";
-    _args->initialize (b, true);
-  }
-  b << " {}\n";
-  if (_args)  _args->declarations (b, "    ");
-  b << "  };\n";
-
-  if (need_self ()) {
-    b << "  ";
-    b.mycat (_self.decl ()) << ";\n";
-  }
-  b << "  stack_t _stack;\n"
-    << "  args_t _args;\n" ;
+  b << "  stack_t _stack;\n";
 
   if (_class)
     b << "  method_type_t _method;\n";
@@ -660,7 +677,7 @@ tame_fn_t::output_stack_vars (strbuf &b)
     const var_t &v = _stack_vars._vars[i];
     if (v.do_output ()) {
       b << "  " << v.ref_decl () << " = " 
-	<< closure_nm () << "->_stack." << v.name () << ";\n" ;
+        << closure_nm () << "->_stack." << v.name () << ";\n" ;
     }
   } 
 }
@@ -671,7 +688,8 @@ tame_fn_t::output_arg_references (strbuf &b)
   for (u_int i = 0; _args && i < _args->size (); i++) {
     const var_t &v = _args->_vars[i];
     b << "  " << v.ref_decl () << " = "
-      << closure_nm () << "->_args." << v.name () << ";\n";
+      << closure_nm () << "->_args." << v.name ()
+      << "; /* " << v.type().to_str() << "*/\n";
   }
 
   // compiler might complain that the variable references aren't
@@ -769,16 +787,17 @@ void
 tame_fn_t::output_vars (outputter_t *o, int ln)
 {
   my_strbuf_t b;
-
+  bool actual_tmpl = bool(_template);
   output_mode_t om = o->switch_to_mode (OUTPUT_TREADMILL, ln);
 
-  b << "  " << _closure.decl () << ";\n"
+  b << "  " << _closure.decl (actual_tmpl) << ";\n"
     << "  "
     ;
-  b.mycat (_closure.type ().mk_ptr ());
+  b.mycat (_closure.type ().mk_ptr (actual_tmpl));
   b << " " << CLOSURE_RFCNT << ";\n"
     << "  const char *" << CLOSURE_TYPE << " = \"" 
-    << _closure.type().type_without_pointer () << "\";\n"
+    << _closure.type().type_without_pointer(actual_tmpl)
+    << "\";\n"
     << "  use_reference (" << CLOSURE_TYPE << ");\n";
 
   b << "  if (!" << closure_generic ().name() << ") {\n"
@@ -786,7 +805,7 @@ tame_fn_t::output_vars (outputter_t *o, int ln)
 
   b << "    if (tame_check_leaks ()) start_rendezvous_collection ();\n"
     << "    " << CLOSURE_RFCNT << " = New refcounted<"
-    << _closure.type().type_without_pointer() << "> (";
+    << _closure.type().type_without_pointer(actual_tmpl) << "> (";
 
   if (need_self ()) {
     b << "this";
@@ -852,6 +871,8 @@ tame_block_ev_t::output (outputter_t *o)
 {
   my_strbuf_t b;
   str tmp;
+  str tyname;
+  bool actual_tmpl;
 
   output_mode_t om = o->switch_to_mode (OUTPUT_TREADMILL);
 
@@ -861,8 +882,11 @@ tame_block_ev_t::output (outputter_t *o)
 
   // Make a closure container named __cls_g, the first argument
   // insert by the mkevent() macro
+  actual_tmpl = (_fn->template_str() != NULL);
+  tyname = (actual_tmpl) ? _fn->closure().type().to_str_w_template_args(false) :
+      _fn->closure().type().type_without_pointer(false);
   b << "  closure_wrapper<";
-  b.mycat (_fn->closure ().type ().to_str_w_template_args (false));
+  b.mycat (tyname);
   b << "> " CLOSURE_GENERIC " (" CLOSURE_RFCNT ");\n";
 
   b << "    " << TAME_CLOSURE_NAME << "->init_block (" 

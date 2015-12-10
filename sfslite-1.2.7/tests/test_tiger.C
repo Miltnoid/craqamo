@@ -1,4 +1,4 @@
-/* $Id: test_tiger.C 2 2003-09-24 14:35:33Z max $ */
+/* $Id$ */
 
 #include "tiger.h"
 #include "async.h"

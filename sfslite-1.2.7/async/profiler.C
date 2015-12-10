@@ -253,6 +253,7 @@ public:
   void recharge ();
   inline void enter_vomit_lib ();
   void exit_vomit_lib ();
+  void set_core (sfs_profiler::core_t *c);
   inline void init ();
 
   enum { RANGE_SIZE_PCT   = 10,
@@ -263,6 +264,8 @@ public:
   edge_t *alloc_edge (const edge_key_t &k);
   obj_file_t *alloc_file (const char *file, const void *base);
   call_site_t *alloc_site (const call_site_key_t &k);
+  void crawl_stack (const ucontext_t &ut);
+  void recharge_guts ();
 
   enum { MIN_SCRATCH_SIZE = 0x10000,
 	 DEF_SCRATCH_SIZE = 0x100000 };
@@ -277,7 +280,6 @@ private:
   void disable_handler (int which);
   void enable_handler (int which);
   void disable_timer (int which);
-  void crawl_stack (const ucontext_t &ut);
   void buffer_recharge ();
   bool valid_rbp (const my_intptr_t *i) const;
   bool valid_rbp_strict (const my_intptr_t *i, const my_intptr_t *s) const;
@@ -301,7 +303,10 @@ private:
   char *_buf, *_bp, *_endp;
 
   const my_intptr_t *_main_rbp;
+  sfs_profiler::core_t *_core;
 };
+
+//-----------------------------------------------------------------------
 
 #define PRFX1 "SFS Profiler: "
 #define PRFX2 "(SSP)"
@@ -400,7 +405,8 @@ sfs_profiler_obj_t::sfs_profiler_obj_t ()
     _buf (NULL),
     _bp (NULL),
     _endp (NULL),
-    _main_rbp (NULL)
+    _main_rbp (NULL),
+    _core (NULL)
 {
   srandom (time (NULL));
 }
@@ -427,6 +433,10 @@ sfs_profiler_obj_t::valid_rbp_strict (const my_intptr_t *rbp,
 	  rbp >= sig &&
 	  valid_rbp (rbp));
 }
+
+//-----------------------------------------------------------------------
+
+void sfs_profiler_obj_t::set_core (sfs_profiler::core_t *c) { _core = c; }
 
 //-----------------------------------------------------------------------
 
@@ -542,13 +552,21 @@ sfs_profiler_obj_t::recharge ()
 {
   ENTER_PROFILER();
   if (_enabled && _init) {
-    buffer_recharge ();
-    _sites.recharge ();
-    _edges.recharge ();
+    if (!_core) { recharge_guts (); } 
+    else { _core->recharge (); }
   }
   EXIT_PROFILER();
 }
 
+//-----------------------------------------------------------------------
+
+void
+sfs_profiler_obj_t::recharge_guts ()
+{
+    buffer_recharge ();
+    _sites.recharge ();
+    _edges.recharge ();
+}
 
 //-----------------------------------------------------------------------
 
@@ -565,9 +583,7 @@ sfs_profiler_obj_t::schedule_next_event ()
 {
   struct itimerval val;
 
-  long rsz = _interval_us * RANGE_SIZE_PCT / 100;
-  long offset = random () % rsz - (rsz/2);
-  long interval = fix_interval (offset + _interval_us);
+  long interval = fix_interval (_interval_us);
 
   val.it_value.tv_usec = interval;
   val.it_value.tv_sec = 0;
@@ -666,8 +682,10 @@ sfs_profiler_obj_t::enable ()
 void
 sfs_profiler_obj_t::disable ()
 {
-  warn << PRFX1 << "disabled\n";
-  _enabled = false;
+  if (_enabled) {
+    warn << PRFX1 << "disabled\n";
+    _enabled = false;
+  }
 }
 
 //-----------------------------------------------------------------------
@@ -676,10 +694,16 @@ void
 sfs_profiler_obj_t::report ()
 {
   ENTER_PROFILER();
-  warn << PRFX2 << " ++++ start report ++++\n";
-  _sites.report ();
-  _edges.report ();
-  warn << PRFX2 << " ---- end report ----\n";
+
+  if (!_core) {
+    warn << PRFX2 << " ++++ start report ++++\n";
+    _sites.report ();
+    _edges.report ();
+    warn << PRFX2 << " ---- end report ----\n";
+  } else {
+    _core->report ();
+  }
+
   if (_enabled) {
     schedule_next_event ();
   }
@@ -811,14 +835,21 @@ sfs_profiler_obj_t::reset ()
   // Don't allow the profile to run while we're resetting it
   bool e = _enabled;
   if (e) { disable (); }
-  _edges.reset ();
-  _sites.reset ();
 
-  if (_buf) {
-    delete [] _buf;
-    _buf = _bp = _endp = NULL;
+  if (_core) { _core->reset (); }
+
+  else {
+   
+    _edges.reset ();
+    _sites.reset ();
+
+    if (_buf) {
+      delete [] _buf;
+      _buf = _bp = _endp = NULL;
+    }
+    while (_bufs.size ()) { delete [] _bufs.pop_back (); }
   }
-  while (_bufs.size ()) { delete [] _bufs.pop_back (); }
+
   if (e) { enable (); }
 }
 
@@ -915,11 +946,12 @@ sfs_profiler_obj_t::crawl_stack (const ucontext_t &ctx)
   }
 
 #else
-# ifdef UCONTEXT_RBP
+# if defined(UCONTEXT_RBP) && defined(UCONTEXT_RIP)
   const my_intptr_t *framep, *sigstack;
 
   if (!(framep = _vomit_rbp)) {
     framep = reinterpret_cast<const my_intptr_t *> (ctx.UCONTEXT_RBP);
+    prev = lookup_pc (ctx.UCONTEXT_RIP);
   }
   READ_RBP(sigstack);
 
@@ -952,8 +984,8 @@ sfs_profiler_obj_t::timer_event (int sig, siginfo_t *si, void *uctx)
 {
   if (!_running && _init && _enabled) {
     if (sig == SIGALRM || sig == SIGVTALRM) {
-      const ucontext_t *ut = static_cast<ucontext_t *> (uctx);
-      crawl_stack (*ut);
+      if (_core) { _core->profile_hook (uctx); }
+      else { crawl_stack (*static_cast<const ucontext_t *> (uctx)); }
     }
   }
   if (_enabled) {
@@ -1026,6 +1058,8 @@ void sfs_profiler::recharge () { g_profile_obj.recharge (); }
 void sfs_profiler::enter_vomit_lib () { g_profile_obj.enter_vomit_lib (); }
 void sfs_profiler::exit_vomit_lib () { g_profile_obj.exit_vomit_lib (); }
 void sfs_profiler::init () { g_profile_obj.init (); }
+void sfs_profiler::set_core (sfs_profiler::core_t *c)
+{ return g_profile_obj.set_core (c); }
 
 //-----------------------------------------------------------------------
 
@@ -1061,6 +1095,7 @@ void sfs_profiler::recharge () {}
 void sfs_profiler::enter_vomit_lib () {}
 void sfs_profiler::exit_vomit_lib () {}
 void sfs_profiler::init () {}
+void sfs_profiler::set_core (sfs_profiler::core_t *c) {}
 
 //-----------------------------------------------------------------------
 

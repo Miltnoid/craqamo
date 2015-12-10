@@ -1,4 +1,4 @@
-/* $Id: nfsconf.h 921 2005-07-01 21:57:28Z max $ */
+/* $Id$ */
 
 #ifndef _NFSCONF_H_
 #define _NFSCONF_H_ 1

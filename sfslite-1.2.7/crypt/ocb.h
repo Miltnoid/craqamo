@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: ocb.h 1117 2005-11-01 16:20:39Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -51,7 +51,6 @@ public:
   static void rshift (blk *d) { rshift (d, *d); }
 
 private:
-  const size_t maxmsg_size;
   const u_int l_size;
   aes k;
   blk *l;

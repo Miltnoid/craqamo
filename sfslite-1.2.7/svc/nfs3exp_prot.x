@@ -1,4 +1,4 @@
-/* $Id: nfs3exp_prot.x 1754 2006-05-19 20:59:19Z max $ */
+/* $Id$ */
 
 /*
  * This file contains the NFS3 protocol with a two change: The ex_fattr3

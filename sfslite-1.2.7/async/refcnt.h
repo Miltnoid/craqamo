@@ -1,5 +1,5 @@
 // -*-c++-*-
-/* $Id: refcnt.h 3758 2008-11-13 00:36:00Z max $ */
+/* $Id$ */
 
 /*
  *
@@ -33,11 +33,8 @@
  *      f = new refcounted<foo> ( ... );
  *      b = NULL;
  *
- * A refcounted<foo> takes the same constructor arguments as foo,
- * except that constructors with more than 7 arguments cannot be
- * called.  (This is because there are no varargs templates.  You can
- * raise the limit from 7 to an arbitrary number if you wish, however,
- * by editting vatmpl.h.)
+ * A refcounted<foo> takes the same constructor arguments as foo (limited to
+ * seven arguments when compiled without C++11 support).
  *
  * A ptr<foo> behaves like a foo *, except that it is reference
  * counted.  The foo will be deleted when all pointers go away.  Also,
@@ -142,7 +139,11 @@ void refcnt_warn (const char *op, const type_info &type, void *addr, int cnt);
 #endif /* VERBOSE_REFCNT */
 
 #include "opnew.h"
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+#include <utility>
+#else
 #include "vatmpl.h"
+#endif
 
 class __globaldestruction_t {
   static bool started;
@@ -330,7 +331,13 @@ class refcounted<T, scalar>
   ~refcounted () {}
 
 public:
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  template <typename... Params>
+  explicit refcounted (Params&&... args) :
+      type2struct<T>::type(std::forward<Params> (args)...) {}
+#else
   VA_TEMPLATE (explicit refcounted, : type2struct<T>::type, {})
+#endif
 };
 
 template<class T>
@@ -348,7 +355,12 @@ class refcounted<T, vbase>
   ~refcounted () {}
 
 public:
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  template <typename... Params>
+  explicit refcounted(Params&&...args) : obj(std::forward<Params>(args)...) {}
+#else
   VA_TEMPLATE (explicit refcounted, : obj, {})
+#endif
 };
 
 
@@ -436,6 +448,16 @@ public:
   ref (const ::ptr<U> &r)
     : refpriv (rc (r)) { p = refpriv::rp (r); inc (); }
 
+  // MM: in case the compiler really wants move semantics, force them
+  // to the copy constructor
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  ref (ref<T>&& src) : ref<T>(src) { }
+  template<class U>
+  ref (ref<U>&& src) : ref<T>(src) { }
+  template<class U>
+  ref (::ptr<U>&& src) : ref<T>(src) { }
+#endif
+
   ~ref () { dec (); }
 
   template<class U, reftype v> ref<T> &operator= (refcounted<U, v> *pp)
@@ -468,13 +490,13 @@ class ptr : public refpriv, public refops <T> {
     if (pp) {
       rinc (pp);
       if (decme)
-	dec ();
+          dec ();
       p = refpriv::rp (pp);
       c = rc (pp);
     }
     else {
       if (decme)
-	dec ();
+          dec ();
       p = NULL;
       c = NULL;
     }
@@ -497,6 +519,16 @@ public:
   ptr (const ::ref<U> &r)
     : refpriv (rc (r)) { p = refpriv::rp (r); inc (); }
 
+  // MM: in case the compiler really wants move semantics, force them
+  // to the copy constructor
+#ifdef __GXX_EXPERIMENTAL_CXX0X__
+  ptr (ptr<T>&& src) : ptr<T>(src) { }
+  template<class U>
+  ptr (ptr<U>&& src) : ptr<T>(src) { }
+  template<class U>
+  ptr (::ref<U>&& src) : ptr<T>(src) { }
+#endif
+
   ~ptr () { dec (); }
 
   ptr<T> &operator= (privtype *)
@@ -510,6 +542,12 @@ public:
     { rinc (r); dec (); p = refpriv::rp (r); c = rc (r); return *this; }
   template<class U> ptr<T> &operator= (const ::ref<U> &r)
     { rinc (r); dec (); p = refpriv::rp (r); c = rc (r); return *this; }
+
+  template <typename... Params>
+  void alloc(Params&&... args) {
+      set(New refcounted<T>(std::forward<Params>(args)...), true);
+  }
+
 };
 
 template<class T>

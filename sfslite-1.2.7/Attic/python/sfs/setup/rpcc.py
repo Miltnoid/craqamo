@@ -3,7 +3,7 @@
 Implements an RPCC compiler abstraction for building Python
 RPC/XDR modules for use with SFS."""
 
-__revision__ = "$Id: rpcc.py 873 2005-05-18 22:54:17Z max $"
+__revision__ = "$Id$"
 
 import os, string
 import os.path

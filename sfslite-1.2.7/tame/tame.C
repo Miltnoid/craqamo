@@ -1,8 +1,10 @@
 
-/* $Id: tame.C 2228 2006-09-28 17:29:28Z max $ */
+/* $Id$ */
 
 #include "tame.h"
 #include "rxx.h"
+
+extern "C" int yylineno;
 
 parse_state_t *state;
 
@@ -125,10 +127,10 @@ main (int argc, char *argv[])
       }
     }
   }
-
-  if (getenv ("TAME_DEBUG_SOURCE")) {
+  
+  if (debug || getenv ("TAME_DEBUG_SOURCE")) {
     no_line_numbers = true;
-	horiz_mode = false;
+    horiz_mode = false;
   }
 
   if (getenv ("TAME_NO_LINE_NUMBERS"))
@@ -175,6 +177,7 @@ main (int argc, char *argv[])
 
   // only on if YYDEBUG is on :(
   // yydebug = 1;
+  yylineno = 1;
 
   yyparse ();
 

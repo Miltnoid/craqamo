@@ -1,5 +1,5 @@
 \input texinfo   @c -*-texinfo-*-
-@c $Id: sfs.texi 2 2003-09-24 14:35:33Z max $
+@c $Id$
 @c %**start of header
 @setfilename sfs.info
 @include version.texi

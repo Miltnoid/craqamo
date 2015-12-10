@@ -1,28 +1,19 @@
 ## Process this file with automake to produce Makefile.in
-# $Id: Makefile.am 5092 2010-01-17 22:46:30Z max $
-
-# Note:  The files
-#   internal.h pcre.h dftables.c maketables.c pcre.c study.c
-# are from pcre-4.5, the perl compatible regular expression library.
-# Pcre was written by Philip Hazel, and is distributed from
-#   http://www.pcre.org/
-#   ftp://ftp.csx.cam.ac.uk/pub/software/programming/pcre/
+# $Id$
 
 sfslib_LTLIBRARIES = libasync.la
 LIBASYNC = libasync.la
-noinst_PROGRAMS = dftables
 sfsexec_PROGRAMS = aiod mmcd
 
 libasync_la_SOURCES = \
 arandom.c clock_gettime.c flock.c rwfd.c stktrace.c suidprotect.c \
-maketables.c pcre.c study.c \
 aerr.C aio.C aios.C arena.C armor.C bbuddy.C cbuf.C convertint.C	\
 core.C daemonize.C dns.C dnsparse.C err.C fdwait.C ident.C ifchg.C	\
 ihash.C itree.C lockfile.C malloc.C msb.C myaddrs.C myname.C		\
 parseopt.C pipe2str.C refcnt.C rxx.C sigio.C socket.C spawn.C str.C	\
 str2file.C straux.C suio++.C suio_vuprintf.C tcpconnect.C litetime.C \
 select.C select_std.C select_epoll.C select_kqueue.C dynenum.C \
-vec.C bundle.C alog2.C leakcheck.C profiler.C wide_str.C
+vec.C bundle.C alog2.C leakcheck.C profiler.C wide_str.C const.C
 
 libasync_la_LDFLAGS = $(LIBTOOL_VERSION_INFO)
 
@@ -34,10 +25,11 @@ sfsinclude_HEADERS = \
 aiod.h aiod_prot.h aios.h amisc.h arena.h array.h async.h backoff.h	\
 bbuddy.h bitvec.h callback.h cbuf.h dns.h dnsimpl.h dnsparse.h err.h	\
 fdlim.h ihash.h init.h itree.h keyfunc.h list.h msb.h opnew.h		\
-parseopt.h pcre.h qhash.h refcnt.h rxx.h serial.h stllike.h str.h	\
+parseopt.h qhash.h refcnt.h rxx.h serial.h stllike.h str.h	\
 suio++.h sysconf.h union.h vatmpl.h vec.h rwfd.h litetime.h       	\
-corebench.h callback.h qtailq.h sfs_select.h rclist.h dynenum.h         \
-rctailq.h rctree.h sfs_bundle.h alog2.h sfs_profiler.h wide_str.h
+corebench.h qtailq.h sfs_select.h rclist.h dynenum.h         \
+rctailq.h rctree.h sfs_bundle.h alog2.h sfs_profiler.h wide_str.h 	\
+sfs_const.h sfs_assert.h weak_template.h
 
 #
 # begin sfslite changes
@@ -51,14 +43,7 @@ mmcd_DEPENDENCIES =
 # end sfslite changes
 #
 
-noinst_HEADERS = internal.h pyenv.mk env.mk
-
-dftables_SOURCES = dftables.c
-dftables_LDADD =
-
-pcre.o pcre.lo: chartables.c
-chartables.c: dftables
-	./dftables $@
+noinst_HEADERS = pyenv.mk env.mk
 
 DEPEND_ON_MAKEFILE = daemonize.o daemonize.lo spawn.o spawn.lo
 $(DEPEND_ON_MAKEFILE): Makefile
@@ -100,10 +85,11 @@ env.mk: Makefile
 	echo "LDADD_THR = $(LDADD_THR)" >> $@~
 	echo "LDADD_STD_ALL = $(LDADD_STD_ALL)" >> $@~	
 	echo "CFLAGS_PROFILE = $(CFLAGS_PROFILE)" >> $@~
+	echo "SFSLITE_ABI_VERSION = $(ABI_VERSION)" >> $@~
 	mv -f $@~ $@
 
 EXTRA_DIST = .cvsignore pyenv.mk env.mk
-CLEANFILES = core *.core *~ *.rpo dftables chartables.c \
+CLEANFILES = core *.core *~ *.rpo \
 	stamp-async-repo env.mk env2.mk
 MAINTAINERCLEANFILES = Makefile.in pyenv.mk env.mk
 

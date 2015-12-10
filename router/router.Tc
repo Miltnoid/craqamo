@@ -283,7 +283,7 @@ tamed static void send_str(int fd, const char * str, cbb cb) {
 	}
 	data.cat(str);
 	while(data.tosuio()->resid()) {
-		twait { tame::waitwrite(fd, mkevent()); }
+		twait { tame::waitwrite(fd, mkevent_o()); }
 		if(data.tosuio()->output(fd) < 0) {
 			TRIGGER(cb, false);
 			return;
@@ -308,7 +308,7 @@ tamed static void send_blob(int fd, blob bin_data, cbb cb) {
 	LOG_ALERT << "RIGHT_BEFORE_REPLY\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
 
 	while(data.tosuio()->resid()) {
-		twait { tame::waitwrite(fd, mkevent()); }
+		twait { tame::waitwrite(fd, mkevent_o()); }
 		if(data.tosuio()->output(fd) < 0) {
 			TRIGGER(cb, false);
 			return;
@@ -337,7 +337,7 @@ tamed static void process(int fd)
 	}
 
 	while(true) {
-		twait { tame::waitread (fd, mkevent()); }
+		twait { tame::waitread (fd, mkevent_o()); }
 		if( (rc = resp.tosuio()->input(fd)) < 0 && errno != EAGAIN) {
 			break;
 		}
@@ -365,7 +365,7 @@ tamed static void process(int fd)
 						resp.tosuio()->rembytes(line_len);
 						line_len = 0;
 						while(resp.tosuio()->resid() < byte_len + 2) {
-							twait { tame::waitread (fd, mkevent()); }
+							twait { tame::waitread (fd, mkevent_o()); }
 							if( (rc = resp.tosuio()->input(fd)) < 0 && errno != EAGAIN) {
 								break;
 							}
@@ -738,7 +738,7 @@ tamed static void main2(int argc, char **argv) {
 
 	//datacenter = data_center.cstr();
 	LOG_WARN << "Initializing...";
-	twait { connect_to_manager(zookeeper_list, mkevent()); }
+	twait { connect_to_manager(zookeeper_list, mkevent_o()); }
 	LOG_WARN << " Done.\n";
 	listen_loop(listen_port);
 

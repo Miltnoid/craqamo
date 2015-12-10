@@ -82,7 +82,7 @@ namespace sfs_core {
 
   //-----------------------------------------------------------------------
 
-  selector_t::selector_t ()
+  selector_t::selector_t () : _maxfd_at_construction (maxfd)
   {
     for (int i = 0; i < fdsn; i++) {
       _fdcbs[i] = New cbv::ptr[maxfd];
