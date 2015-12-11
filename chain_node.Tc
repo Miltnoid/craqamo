@@ -23,6 +23,8 @@
 #include "zookeeper.h"
 #include "zoo_craq.Th"
 #include <tclap/CmdLine.h>
+#include <thread>
+#include <functional>
 
 using namespace CryptoPP;
 using namespace std;
@@ -65,6 +67,7 @@ typedef map<ID_Value, key_meta>::iterator key_iter;
 static void get_chain_info(ID_Value chain_id, ptr<callback<void, ptr<chain_meta> > > cb, CLOSURE);
 static void process_query_obj_ver(svccb * sbp, CLOSURE);
 static void process_tail_read(svccb * sbp, CLOSURE);
+static void check_consistency_internal(CLOSURE);
 static void process_tail_read_ex(svccb * sbp, CLOSURE);
 static void process_head_write(svccb * sbp, CLOSURE);
 static void process_propagate(svccb * sbp, CLOSURE);
@@ -147,7 +150,8 @@ void delay(long ms) {
   ts.tv_nsec = (ms % 1000) * 1000000;
   nanosleep(&ts, NULL);
 }
-
+int write_requirements;
+int read_requirements;
 str user_ip;
 str get_ip_address() {
         vec<in_addr> addrs;
@@ -517,6 +521,16 @@ tamed void process_tail_read(svccb * sbp) {
 
 }
 
+tamed void check_consistency_internal() {
+	LOG_ALERT << "INTERNAL";
+}
+
+void check_consistency(int const & counter) {
+	int & counttemp = const_cast<int &>(counter);
+	counttemp++;
+	check_consistency_internal();
+}
+
 tamed void process_tail_read_ex(svccb * sbp) {
 	tvars {
 		tail_read_ex_arg parg;
@@ -526,6 +540,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		key_iter it;
 		ring_iter rit;
 		int i;
+		int j;
 		ptr<aclnt> cli;
 		clnt_stat e;
 		int fd;
@@ -541,8 +556,8 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		timeval cur_time;
 		long sec_diff;
 		long usec_diff;
+		int num_responses;
 	}
-
 	gettimeofday(&cur_time, NULL);
 	LOG_ALERT << "READ\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
 
@@ -558,6 +573,126 @@ tamed void process_tail_read_ex(svccb * sbp) {
 	if(it == key_meta_list.end() ) {
 		sbp->replyref(empty);
 		LOG_INFO << "iterator is at the end of the meta list";
+		return;
+	}
+
+	if (!parg.strong_consistency) {
+		LOG_WARN << "Weakly consistent READ on " << id.toString().c_str() << "\n";
+		num_responses = 0;
+		twait {
+			storage->get(id, mkevent(repl));
+		}
+		LOG_INFO << "after storage get";
+		to_rep.data = *repl;
+		LOG_INFO << "1";
+		to_rep.dirty = false;
+		LOG_INFO << "2";
+		to_rep.ver = to_rpc_mytimeval(it->second.committed);
+		LOG_INFO << "before replyweak";
+
+		gettimeofday(&cur_time, NULL);
+		LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
+
+		chain_id.set_from_rpc(parg.chain);
+		twait{ get_chain_info(chain_id, mkevent(chain_info)); }
+		if(chain_info == NULL) {
+			LOG_FATAL << "Couldn't get chain info in read!\n";
+			sbp->replyref(empty);
+			return;
+		}
+
+		j = 0;
+		rit = ring_succ(id);
+		for (i=0; i<chain_info->chain_size; i++) {
+			tail = rit->second;
+			std::thread t(check_consistency, std::ref(j));
+
+/*[&r=j] {
+
+				LOG_INFO << "before get_rpc_cli call";
+				twait { get_rpc_cli (tail.getIp().c_str(), tail.getPort(), &cli, &chain_node_1, mkevent(fd)); }
+				LOG_INFO << "after get_rpc_cli call";
+
+
+				//Query tail
+				qry_id = id.get_rpc_id();
+				//gettimeofday(&started, NULL);
+				LOG_INFO << "before query_obj_ver call";
+				twait {	cli->call(QUERY_OBJ_VER, &qry_id, &ret,  mkevent(e)); }
+				LOG_INFO << "after query_obj_ver call";
+
+				if(e) {
+					LOG_INFO << "report bad node";
+					report_bad_node(rit->second);
+					sbp->replyref(empty);
+					return;
+				} else {
+					//Refetch key
+					it = key_meta_list.find(id);
+					if(it == key_meta_list.end() ) {
+						sbp->replyref(empty);
+						return;
+					}
+
+					//Got an ACK between call
+					if(!timercmp(&it->second.committed, &it->second.max_pending, !=)) {
+						LOG_WARN << "Clean READ " << id.toString().c_str() << "\n";
+						twait { storage->get(id, mkevent(repl)); }
+						LOG_INFO << "after storage get 2";
+						to_rep.data = *repl;
+						LOG_INFO << "3";
+						to_rep.dirty = true;
+						LOG_INFO << "4";
+						to_rep.ver = to_rpc_mytimeval(it->second.committed);
+						LOG_INFO << "before replyref 2";
+						sbp->replyref(to_rep);
+
+						gettimeofday(&cur_time, NULL);
+						LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
+
+						LOG_INFO << "after replyref 2";
+						return;
+					}
+					//See if we have the version the tail would return
+					kit = it->second.pending_list.find(from_rpc_mytimeval(ret.hist));
+					if(kit == it->second.pending_list.end()) {
+						kit = it->second.pending_list.find(it->second.max_pending); //really wrong
+						if(kit == it->second.pending_list.end()) {
+							sbp->replyref(empty);
+							return;
+						}
+					}
+					//Return tail's committed version
+					to_rep.data = kit->second;
+					to_rep.dirty = true;
+					to_rep.ver = ret.hist;
+					sbp->replyref(to_rep);
+
+					gettimeofday(&cur_time, NULL);
+					LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
+
+					return;
+
+
+
+
+
+
+				r++;
+			});*/
+			t.detach();
+			ring_incr(&rit);
+		}
+		LOG_ALERT << "done loop";
+
+		//TODO: add safety net for lock
+		while (j < read_requirements) {
+			LOG_ALERT << "spinning";
+		}
+
+		sbp->replyref(to_rep);
+
+		LOG_INFO << "after replywk";
 		return;
 	}
 
@@ -786,6 +921,7 @@ tamed void process_test_and_set(svccb * sbp) {
 		key_meta wrt;
 		bool ret_val;
 		ptr<chain_meta> chain_info;
+        	timeval temptimeval;
 	}
 
 	parg = *(sbp->getarg<test_and_set_arg>());
@@ -820,7 +956,6 @@ tamed void process_test_and_set(svccb * sbp) {
 	}
 
 	//If requested version is not the latest committed version, just reject
-        timeval temptimeval;
 	temptimeval = from_rpc_mytimeval(parg.ver);
 	if(timercmp(&temptimeval, &(it->second).committed, !=)) {
 		sbp->replyref(false);
@@ -851,6 +986,7 @@ tamed void process_propagate(svccb * sbp) {
 		bool ret_val;
 		bool set_succ;
 		ptr<chain_meta> chain_info;
+		timeval temppargver;
 	}
 
 	parg = *(sbp->getarg<propagate_arg>());
@@ -883,7 +1019,6 @@ tamed void process_propagate(svccb * sbp) {
 	kit = key_meta_list.find(id);
 
 	//Reply true if we already have a higher or equal version
-	timeval temppargver;
 	temppargver = from_rpc_mytimeval(parg.ver);
 	if(kit != key_meta_list.end() &&
 		((timercmp(&kit->second.max_pending, &temppargver, >=) && parg.committed == false) ||
@@ -972,6 +1107,7 @@ tamed void process_back_propagate(svccb * sbp) {
 		bool ret_val;
 		bool set_succ;
 		ptr<chain_meta> chain_info;
+		timeval pargver;
 	}
 
 	parg = *(sbp->getarg<propagate_arg>());
@@ -1002,7 +1138,6 @@ tamed void process_back_propagate(svccb * sbp) {
 
 	kit = key_meta_list.find(id);
 	//Reply true if we already have a higher or equal version
-	timeval pargver;
 	pargver = from_rpc_mytimeval(parg.ver);
 	if(kit != key_meta_list.end() &&
 		((timercmp(&kit->second.max_pending, &pargver, >=) && parg.committed == false) ||
@@ -1071,6 +1206,7 @@ tamed void process_ack(svccb * sbp) {
 		bool ret_val;
 		bool set_succ;
 		timeval cur_time;
+		timeval pargver;
 	}
 
 	parg = *(sbp->getarg<ack_arg>());
@@ -1088,7 +1224,6 @@ tamed void process_ack(svccb * sbp) {
 	}
 
 	//If we have higher or equal version committed, just reply true
-	timeval pargver;
 	pargver = from_rpc_mytimeval(parg.ver);
 	if(timercmp(&kit->second.committed, &pargver, >=)) {
 		sbp->replyref(true);
@@ -1121,7 +1256,6 @@ tamed void process_ack(svccb * sbp) {
 		}
 		it->second.clear();
 		kit->second.write_reqs.erase(it++);
-		timeval pargver;
 		pargver = from_rpc_mytimeval(parg.ver);
 		if(timercmp(&it->first, &pargver, >)) break;
 	}
@@ -2094,12 +2228,18 @@ void main2(int argc, char **argv) {
 
 		cfg.lookupValue("node.lighttpd_port", lighttpd_port);
 
+		cfg.lookupValue("node.read_requirements", read_requirements);
+		cfg.lookupValue("node.write_requirements", write_requirements);
+
+
 		//set up logging
 		cfg.lookupValue("logging.file", log_file);
 		cfg.lookupValue("logging.min_priority", log_priority);
 		log4cpp_init(log_file, log_priority);
 		LOG_DEBUG << "logging set up";
 
+		LOG_DEBUG << "READ REQS" << read_requirements;
+		LOG_DEBUG << "WRITE REQS" << write_requirements;
 	}
 	catch (TCLAP::ArgException &e)  // catch any exceptions
 	{
