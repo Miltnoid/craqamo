@@ -92,6 +92,7 @@ struct tail_read_ex_arg {
  	rpc_hash id;
  	bool dirty;
 	bool strong_consistency;
+	bool no_consistency;
 };
  
 struct tail_read_ex_ret {

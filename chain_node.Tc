@@ -653,6 +653,22 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		return;
 	}
 
+	if (parg.no_consistency) {
+		LOG_WARN << "no consistent READ on " << id.toString().c_str() 
+			 << " this is likely for synchronization\n";
+
+		twait {
+			storage->get(id, mkevent(repl));
+		}
+		LOG_INFO << "after nc storage get";
+		to_rep.data = *repl;
+		LOG_INFO << "1";
+		to_rep.dirty = false;
+		LOG_INFO << "2";
+		to_rep.ver = to_rpc_mytimeval(it->second.committed);
+		sbp->replyref(to_rep);
+	}
+
 	if (!parg.strong_consistency) {
 		LOG_WARN << "Weakly consistent READ on " << id.toString().c_str() << "\n";
 		num_responses = 0;
