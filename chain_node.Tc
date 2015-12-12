@@ -67,7 +67,7 @@ typedef map<ID_Value, key_meta>::iterator key_iter;
 static void get_chain_info(ID_Value chain_id, ptr<callback<void, ptr<chain_meta> > > cb, CLOSURE);
 static void process_query_obj_ver(svccb * sbp, CLOSURE);
 static void process_tail_read(svccb * sbp, CLOSURE);
-static void check_consistency_internal(CLOSURE);
+static void check_consistency_internal(svccb * sbp, Node tl, CLOSURE);
 static void process_tail_read_ex(svccb * sbp, CLOSURE);
 static void process_head_write(svccb * sbp, CLOSURE);
 static void process_propagate(svccb * sbp, CLOSURE);
@@ -521,14 +521,91 @@ tamed void process_tail_read(svccb * sbp) {
 
 }
 
-tamed void check_consistency_internal() {
+tamed void check_consistency_internal(svccb * sbp, Node tl) {
+	tvars {
+		Node tail;
+
+		ptr<aclnt> cli;
+		rpc_hash qry_id;
+		query_obj_ver_ret ret;
+		tail_read_ex_ret empty;
+
+
+		ptr<blob> repl;
+		ID_Value id;
+		key_iter it;
+		int i;
+		int j;
+		clnt_stat e;
+		int fd;
+		map<timeval, blob>::iterator kit;
+		tail_read_ex_ret to_rep;
+		ptr<chain_meta> chain_info;
+		ptr<Node> ext_tail;
+		timeval started;
+		timeval cur_time;
+		long sec_diff;
+		long usec_diff;
+		int num_responses;
+	}
+
+	tail = tl;
+
 	LOG_ALERT << "INTERNAL";
+
+	LOG_INFO << "before get_rpc_cli call";
+	twait { get_rpc_cli (tail.getIp().c_str(), tail.getPort(), &cli, &chain_node_1, mkevent(fd)); }
+	LOG_INFO << "after get_rpc_cli call";
+
+
+	//Query tail
+	qry_id = id.get_rpc_id();
+	//gettimeofday(&started, NULL);
+	LOG_INFO << "before query_obj_ver call";
+	twait {	cli->call(QUERY_OBJ_VER, &qry_id, &ret,  mkevent(e)); }
+	LOG_INFO << "after query_obj_ver call";
+
+	if(e) {
+		LOG_INFO << "report bad node";
+		report_bad_node(tail);
+		sbp->replyref(empty);
+		return;
+	} else {
+		//Refetch key
+		it = key_meta_list.find(id);
+		if(it == key_meta_list.end() ) {
+			//became deleted!
+			return;
+		}
+
+//TODO: synchronize the data, if the data is out of sync, send propagates, or retrieve the correct data, if it isnt, dont
+/*		//See if we have the version the tail would return
+		kit = it->second.pending_list.find(from_rpc_mytimeval(ret.hist));
+		if(kit == it->second.pending_list.end()) {
+			kit = it->second.pending_list.find(it->second.max_pending); //really wrong
+			if(kit == it->second.pending_list.end()) {
+				return;
+			}
+		}
+
+		//Return tail's committed version
+		to_rep.data = kit->second;
+		to_rep.dirty = true;
+		to_rep.ver = ret.hist;
+		sbp->replyref(to_rep);
+
+		gettimeofday(&cur_time, NULL);
+		LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";*/
+
+		return;
+	}
 }
 
-void check_consistency(int const & counter) {
+void check_consistency(svccb * sbp, int const & counter, Node tl) {
+	check_consistency_internal(sbp, tl);
+
 	int & counttemp = const_cast<int &>(counter);
 	counttemp++;
-	check_consistency_internal();
 }
 
 tamed void process_tail_read_ex(svccb * sbp) {
@@ -605,81 +682,9 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		rit = ring_succ(id);
 		for (i=0; i<chain_info->chain_size; i++) {
 			tail = rit->second;
-			std::thread t(check_consistency, std::ref(j));
+			std::thread t(check_consistency, sbp, std::ref(j), tail);
 
-/*[&r=j] {
-
-				LOG_INFO << "before get_rpc_cli call";
-				twait { get_rpc_cli (tail.getIp().c_str(), tail.getPort(), &cli, &chain_node_1, mkevent(fd)); }
-				LOG_INFO << "after get_rpc_cli call";
-
-
-				//Query tail
-				qry_id = id.get_rpc_id();
-				//gettimeofday(&started, NULL);
-				LOG_INFO << "before query_obj_ver call";
-				twait {	cli->call(QUERY_OBJ_VER, &qry_id, &ret,  mkevent(e)); }
-				LOG_INFO << "after query_obj_ver call";
-
-				if(e) {
-					LOG_INFO << "report bad node";
-					report_bad_node(rit->second);
-					sbp->replyref(empty);
-					return;
-				} else {
-					//Refetch key
-					it = key_meta_list.find(id);
-					if(it == key_meta_list.end() ) {
-						sbp->replyref(empty);
-						return;
-					}
-
-					//Got an ACK between call
-					if(!timercmp(&it->second.committed, &it->second.max_pending, !=)) {
-						LOG_WARN << "Clean READ " << id.toString().c_str() << "\n";
-						twait { storage->get(id, mkevent(repl)); }
-						LOG_INFO << "after storage get 2";
-						to_rep.data = *repl;
-						LOG_INFO << "3";
-						to_rep.dirty = true;
-						LOG_INFO << "4";
-						to_rep.ver = to_rpc_mytimeval(it->second.committed);
-						LOG_INFO << "before replyref 2";
-						sbp->replyref(to_rep);
-
-						gettimeofday(&cur_time, NULL);
-						LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
-
-						LOG_INFO << "after replyref 2";
-						return;
-					}
-					//See if we have the version the tail would return
-					kit = it->second.pending_list.find(from_rpc_mytimeval(ret.hist));
-					if(kit == it->second.pending_list.end()) {
-						kit = it->second.pending_list.find(it->second.max_pending); //really wrong
-						if(kit == it->second.pending_list.end()) {
-							sbp->replyref(empty);
-							return;
-						}
-					}
-					//Return tail's committed version
-					to_rep.data = kit->second;
-					to_rep.dirty = true;
-					to_rep.ver = ret.hist;
-					sbp->replyref(to_rep);
-
-					gettimeofday(&cur_time, NULL);
-					LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
-
-					return;
-
-
-
-
-
-
-				r++;
-			});*/
+//TODO: don't detach thread, store in a thread array, and wait for all of them after returning to client
 			t.detach();
 			ring_incr(&rit);
 		}
