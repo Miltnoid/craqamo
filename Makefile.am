@@ -162,6 +162,7 @@ bin_PROGRAMS = chain_node \
                test/multi_read_write \
                test/writer \
                test/reader \
+               test/reader_sc \
                test/single_reader \
                test/read_write \
                test/get_chain_info \
@@ -176,6 +177,7 @@ test_single_write_read_SOURCES = test/single_write_read.Tc $(OBJS)
 test_multi_read_write_SOURCES = test/multi_read_write.Tc $(OBJS)
 test_writer_SOURCES = test/writer.Tc $(OBJS)
 test_reader_SOURCES = test/reader.Tc $(OBJS)
+test_reader_sc_SOURCES = test/reader_sc.Tc $(OBJS)
 test_single_reader_SOURCES = test/single_reader.Tc $(OBJS)
 test_read_write_SOURCES = test/read_write.Tc $(OBJS)
 test_get_chain_info_SOURCES = test/get_chain_info.Tc $(OBJS)

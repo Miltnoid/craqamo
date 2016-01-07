@@ -551,11 +551,9 @@ tamed void check_consistency_internal(svccb * sbp, Node tl) {
 
 	tail = tl;
 
-	LOG_ALERT << "INTERNAL";
+	LOG_ALERT << "inside synchronization thread\n";
 
-	LOG_INFO << "before get_rpc_cli call";
 	twait { get_rpc_cli (tail.getIp().c_str(), tail.getPort(), &cli, &chain_node_1, mkevent(fd)); }
-	LOG_INFO << "after get_rpc_cli call";
 
 
 	//Query tail
@@ -604,8 +602,11 @@ tamed void check_consistency_internal(svccb * sbp, Node tl) {
 void check_consistency(svccb * sbp, int const & counter, Node tl) {
 	check_consistency_internal(sbp, tl);
 
-	int & counttemp = const_cast<int &>(counter);
-	counttemp++;
+	if (&counter != NULL) {
+		int & counttemp = const_cast<int &>(counter);
+		counttemp++;
+		LOG_ALERT << counttemp << " nodes synchronized";
+	}
 }
 
 tamed void process_tail_read_ex(svccb * sbp) {
@@ -662,9 +663,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		}
 		LOG_INFO << "after nc storage get";
 		to_rep.data = *repl;
-		LOG_INFO << "1";
 		to_rep.dirty = false;
-		LOG_INFO << "2";
 		to_rep.ver = to_rpc_mytimeval(it->second.committed);
 		sbp->replyref(to_rep);
 	}
@@ -677,11 +676,8 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		}
 		LOG_INFO << "after storage get";
 		to_rep.data = *repl;
-		LOG_INFO << "1";
 		to_rep.dirty = false;
-		LOG_INFO << "2";
 		to_rep.ver = to_rpc_mytimeval(it->second.committed);
-		LOG_INFO << "before replyweak";
 
 		gettimeofday(&cur_time, NULL);
 		LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
@@ -694,14 +690,17 @@ tamed void process_tail_read_ex(svccb * sbp) {
 			return;
 		}
 
-		j = 0;
+		LOG_INFO << "starting synchronization";
+		j = 1;
 		rit = ring_succ(id);
 		for (i=0; i<chain_info->chain_size; i++) {
 			tail = rit->second;
-			std::thread t(check_consistency, sbp, std::ref(j), tail);
+			if (my_id != tail.getId()) {
+				std::thread t(check_consistency, sbp, std::ref(j), tail);
 
 //TODO: don't detach thread, store in a thread array, and wait for all of them after returning to client
-			t.detach();
+				t.detach();
+			}
 			ring_incr(&rit);
 		}
 		LOG_ALERT << "done loop";
@@ -713,7 +712,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 
 		sbp->replyref(to_rep);
 
-		LOG_INFO << "after replywk";
+		LOG_INFO << "after weakly consistent reply";
 		return;
 	}
 
@@ -722,9 +721,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		twait { storage->get(id, mkevent(repl)); }
 		LOG_INFO << "after storage get";
 		to_rep.data = *repl;
-		LOG_INFO << "1";
 		to_rep.dirty = false;
-		LOG_INFO << "2";
 		to_rep.ver = to_rpc_mytimeval(it->second.committed);
 		LOG_INFO << "before replyref";
 		sbp->replyref(to_rep);
