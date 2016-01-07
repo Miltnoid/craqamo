@@ -56,6 +56,7 @@ struct head_write_arg {
  	rpc_hash chain;
  	rpc_hash id;
 	blob data;
+	bool strong_consistency;
 };
  
 struct propagate_arg {
@@ -64,6 +65,7 @@ struct propagate_arg {
  	rpc_mytimeval ver;
  	blob data;
  	bool committed;
+	bool strong_consistency;
 };
  
 struct ack_arg {

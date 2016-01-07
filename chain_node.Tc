@@ -876,6 +876,11 @@ tamed void process_head_write(svccb * sbp) {
 		return;
 	}
 
+	if (!parg.strong_consistency)
+	{
+		LOG_DEBUG << "weak consistent write";
+	}
+
 	//Reject if first data center is not us
 	if(chain_info->data_centers[0] != datacenter) {
 		LOG_DEBUG << "Rejecting head_write because we are not first datacenter";
