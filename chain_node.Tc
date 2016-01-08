@@ -1137,10 +1137,13 @@ tamed void process_test_and_set(svccb * sbp) {
 tamed void process_propagate(svccb * sbp) {
 	tvars {
 		propagate_arg parg;
+		propagate_arg prop_arg;
+		ID_Value caller_id;
 		ID_Value id;
 		ID_Value chain_id;
 		key_iter kit;
 		ring_iter t;
+		ring_iter rit;
 		key_meta wrt;
 		u_int i;
 		bool in_succ;
@@ -1186,6 +1189,25 @@ tamed void process_propagate(svccb * sbp) {
 			((timercmp(&kit->second.max_pending, &temppargver, >=) && parg.committed == false) ||
 			 (timercmp(&kit->second.committed, &temppargver, >=) && parg.committed == true))) {
 			 	LOG_WARN << "This is higher, propagate to senderTODO\n";
+				//Find tail
+				caller_id.set_from_rpc(parg.from_node_id);
+				rit = ring_succ(id);
+				for(i=0; i<CHAIN_SIZE-1; i++)
+				{
+					if (rit->second.getId() == caller_id) break;
+					ring_incr(&rit);
+				}
+
+				prop_arg.chain = parg.chain;
+				prop_arg.id = parg.id;
+				prop_arg.ver = to_rpc_mytimeval(kit->second.max_pending);
+				prop_arg.data = parg.data;
+				prop_arg.committed = true;
+				prop_arg.strong_consistency = false;
+				prop_arg.from_node_id = my_id.get_rpc_id();
+
+				LOG_INFO << "starting synchronization";
+				eventual_propagate_internal(sbp, rit->second, prop_arg);
 				sbp->replyref(true);
 				return;
 			}
@@ -1220,6 +1242,7 @@ tamed void process_propagate(svccb * sbp) {
 		twait { storage->set(id, &parg.data, mkevent(set_succ)); }
 		LOG_WARN << "stored";
 
+		sbp->replyref(true);
 		return;
 	}
 
