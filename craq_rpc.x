@@ -66,6 +66,7 @@ struct propagate_arg {
  	blob data;
  	bool committed;
 	bool strong_consistency;
+	rpc_hash from_node_id;
 };
  
 struct ack_arg {

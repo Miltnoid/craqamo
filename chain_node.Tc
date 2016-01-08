@@ -58,6 +58,7 @@ struct key_meta {
 	map<timeval, deque<svccb *> > write_reqs;
 	bool is_head;
 	bool is_tail;
+	bool last_strong_consistent;
 	ID_Value chain_id;
 };
 
@@ -68,6 +69,7 @@ static void get_chain_info(ID_Value chain_id, ptr<callback<void, ptr<chain_meta>
 static void process_query_obj_ver(svccb * sbp, CLOSURE);
 static void process_tail_read(svccb * sbp, CLOSURE);
 static void check_consistency_internal(svccb * sbp, Node tl, CLOSURE);
+static void eventual_propagate_internal(svccb * sbp, Node tl, propagate_arg parg, CLOSURE);
 static void process_tail_read_ex(svccb * sbp, CLOSURE);
 static void process_head_write(svccb * sbp, CLOSURE);
 static void process_propagate(svccb * sbp, CLOSURE);
@@ -599,6 +601,72 @@ tamed void check_consistency_internal(svccb * sbp, Node tl) {
 	}
 }
 
+tamed void eventual_propagate_internal(svccb * sbp, Node tl, propagate_arg parg) {
+	tvars {
+		Node tail;
+
+		ptr<aclnt> cli;
+		rpc_hash qry_id;
+		query_obj_ver_ret ret;
+		tail_read_ex_ret empty;
+		bool rpc_ret;
+
+
+		ptr<blob> repl;
+		ID_Value id;
+		key_iter it;
+		int i;
+		int j;
+		clnt_stat e;
+		int fd;
+		map<timeval, blob>::iterator kit;
+		tail_read_ex_ret to_rep;
+		ptr<chain_meta> chain_info;
+		ptr<Node> ext_tail;
+		timeval started;
+		timeval cur_time;
+		long sec_diff;
+		long usec_diff;
+		int num_responses;
+	}
+
+	tail = tl;
+
+	LOG_ALERT << "inside ec propagation thread\n";
+
+	twait { get_rpc_cli (tail.getIp().c_str(), tail.getPort(), &cli, &chain_node_1, mkevent(fd)); }
+
+	LOG_ALERT << "propagate calling";
+	twait {	cli->call(PROPAGATE, &parg, &rpc_ret,  mkevent(e)); }
+	LOG_ALERT << "propagate called";
+
+	if(e) {
+		LOG_INFO << "report bad node";
+		report_bad_node(tail);
+		sbp->replyref(empty);
+		return;
+	} else {
+		//Refetch key
+		it = key_meta_list.find(id);
+		if(it == key_meta_list.end() ) {
+			//became deleted!
+			return;
+		}
+
+		return;
+	}
+}
+
+void eventual_propagate(svccb * sbp, int const & counter, Node tl, propagate_arg parg) {
+	eventual_propagate_internal(sbp, tl, parg);
+
+	if (&counter != NULL) {
+		int & counttemp = const_cast<int &>(counter);
+		counttemp++;
+		LOG_ALERT << counttemp << " nodes synchronized";
+	}
+}
+
 void check_consistency(svccb * sbp, int const & counter, Node tl) {
 	check_consistency_internal(sbp, tl);
 
@@ -844,14 +912,20 @@ tamed void process_tail_read_ex(svccb * sbp) {
 tamed void process_head_write(svccb * sbp) {
 	tvars {
 		head_write_arg parg;
+		propagate_arg prop_arg;
 		ID_Value id;
 		ID_Value chain_id;
 		key_iter it;
 		ring_iter parent_ptr;
+		ring_iter rit;
 		key_meta wrt;
 		bool ret_val;
 		ptr<chain_meta> chain_info;
 		timeval cur_time;
+		bool set_succ;
+		Node tail;
+		int i;
+		int j;
 	}
 
 	gettimeofday(&cur_time, NULL);
@@ -878,7 +952,70 @@ tamed void process_head_write(svccb * sbp) {
 
 	if (!parg.strong_consistency)
 	{
-		LOG_DEBUG << "weak consistent write";
+		LOG_DEBUG << "eventually consistent write";
+		//Update meta key
+		it = key_meta_list.find(id);
+		if (it == key_meta_list.end()) {
+			//new
+			//Create new key if this is the first
+			timeval max_pending;
+			gettimeofday(&max_pending, NULL);
+			wrt.max_pending = max_pending;
+			wrt.committed = max_pending;
+			wrt.last_strong_consistent = false;
+			if(chain_info->chain_size == 1) {
+				wrt.is_tail = true;
+			} else {
+				wrt.is_tail = false;
+			}
+			wrt.is_head = true; //TODO
+			wrt.chain_id = chain_id;
+			key_meta_list[id] = wrt;
+		}
+		else {
+			//old
+			//Update key if this is not the first
+			wrt = it->second;
+			gettimeofday(&wrt.max_pending, NULL);
+			wrt.chain_id = chain_id;
+			wrt.max_pending = wrt.max_pending;
+			wrt.committed = wrt.max_pending;
+			wrt.last_strong_consistent = false;
+			wrt.is_head = true; //TODO
+			key_meta_list[id] = wrt;
+		}
+
+		twait { storage->set(id, &parg.data, mkevent(set_succ)); }
+
+		prop_arg.chain = parg.chain;
+		prop_arg.id = parg.id;
+		prop_arg.ver = to_rpc_mytimeval(wrt.max_pending);
+		prop_arg.data = parg.data;
+		prop_arg.committed = true;
+		prop_arg.strong_consistency = false;
+		prop_arg.from_node_id = my_id.get_rpc_id();
+
+		LOG_INFO << "starting synchronization";
+		j = 1;
+		rit = ring_succ(id);
+		for (i=0; i<chain_info->chain_size; i++) {
+			tail = rit->second;
+			if (my_id != tail.getId()) {
+				std::thread t(eventual_propagate, sbp, std::ref(j), tail, prop_arg);
+
+//TODO: don't detach thread, store in a thread array, and wait for all of them after returning to client
+				t.detach();
+			}
+			ring_incr(&rit);
+		}
+		LOG_ALERT << "done loop";
+
+		//TODO: add safety net for lock
+		while (j < write_requirements) {
+			LOG_ALERT << "spinning";
+		}
+		sbp->replyref(true);
+		return;
 	}
 
 	//Reject if first data center is not us
@@ -932,6 +1069,7 @@ tamed void process_head_write(svccb * sbp) {
 	}
 
 	twait { propagate(chain_id, id, false, mkevent(ret_val)); }
+	LOG_DEBUG << "3";
 }
 
 tamed void process_test_and_set(svccb * sbp) {
@@ -1041,6 +1179,50 @@ tamed void process_propagate(svccb * sbp) {
 	id.set_from_rpc(parg.id);
 	kit = key_meta_list.find(id);
 
+	if (!parg.strong_consistency) {
+		LOG_WARN << "ec propagate";
+		temppargver = from_rpc_mytimeval(parg.ver);
+		if(kit != key_meta_list.end() &&
+			((timercmp(&kit->second.max_pending, &temppargver, >=) && parg.committed == false) ||
+			 (timercmp(&kit->second.committed, &temppargver, >=) && parg.committed == true))) {
+			 	LOG_WARN << "This is higher, propagate to senderTODO\n";
+				sbp->replyref(true);
+				return;
+			}
+		if(kit != key_meta_list.end()) {
+			wrt = kit->second;
+		}
+		wrt.committed = temppargver;
+		wrt.max_pending = temppargver;
+		wrt.pending_list.clear();
+		wrt.is_tail = false;
+		wrt.last_strong_consistent = false;
+		wrt.chain_id = chain_id;
+		t = ring_succ(id);
+		in_succ = false;
+		for(i=0; i<chain_info->chain_size; i++) {
+			if(t == my_node_ptr) {
+				in_succ = true;
+				break;
+			}
+			ring_incr(&t);
+		}
+		if(i == chain_info->chain_size-1) {
+        	LOG_WARN << "I am the tail of this chain\n";
+			wrt.is_tail = true;
+ 		}
+		wrt.is_tail = true;
+		wrt.is_head = true;//TODO
+		wrt.chain_id = chain_id;
+		key_meta_list[id] = wrt;
+		
+		LOG_WARN << "about to store";
+		twait { storage->set(id, &parg.data, mkevent(set_succ)); }
+		LOG_WARN << "stored";
+
+		return;
+	}
+
 	//Reply true if we already have a higher or equal version
 	temppargver = from_rpc_mytimeval(parg.ver);
 	if(kit != key_meta_list.end() &&
@@ -1069,7 +1251,7 @@ tamed void process_propagate(svccb * sbp) {
 	if(i == chain_info->chain_size-1) {
         LOG_WARN << "I am the tail of this chain\n";
 		wrt.is_tail = true;
-    }
+ 	}
 	if(i == 0)
 		wrt.is_head = true;
 	//Return false if we don't think we should be storing a replica of this key
@@ -1282,6 +1464,7 @@ tamed void process_ack(svccb * sbp) {
 		pargver = from_rpc_mytimeval(parg.ver);
 		if(timercmp(&it->first, &pargver, >)) break;
 	}
+
 
 	//Update committed version number
 	kit->second.committed = from_rpc_mytimeval(parg.ver);
