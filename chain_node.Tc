@@ -578,25 +578,6 @@ tamed void check_consistency_internal(svccb * sbp, Node tl) {
 			return;
 		}
 
-//TODO: synchronize the data, if the data is out of sync, send propagates, or retrieve the correct data, if it isnt, dont
-/*		//See if we have the version the tail would return
-		kit = it->second.pending_list.find(from_rpc_mytimeval(ret.hist));
-		if(kit == it->second.pending_list.end()) {
-			kit = it->second.pending_list.find(it->second.max_pending); //really wrong
-			if(kit == it->second.pending_list.end()) {
-				return;
-			}
-		}
-
-		//Return tail's committed version
-		to_rep.data = kit->second;
-		to_rep.dirty = true;
-		to_rep.ver = ret.hist;
-		sbp->replyref(to_rep);
-
-		gettimeofday(&cur_time, NULL);
-		LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";*/
-
 		return;
 	}
 }
@@ -703,6 +684,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		long sec_diff;
 		long usec_diff;
 		int num_responses;
+		thread* threads;
 	}
 	gettimeofday(&cur_time, NULL);
 	LOG_ALERT << "READ\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
@@ -734,6 +716,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		to_rep.dirty = false;
 		to_rep.ver = to_rpc_mytimeval(it->second.committed);
 		sbp->replyref(to_rep);
+		return;
 	}
 
 	if (!parg.strong_consistency) {
@@ -761,13 +744,12 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		LOG_INFO << "starting synchronization";
 		j = 1;
 		rit = ring_succ(id);
-		for (i=0; i<chain_info->chain_size; i++) {
+		threads = new thread[chain_info->chain_size-1];
+		for (i=0; i<chain_info->chain_size-1; ) {
 			tail = rit->second;
 			if (my_id != tail.getId()) {
-				std::thread t(check_consistency, sbp, std::ref(j), tail);
-
-//TODO: don't detach thread, store in a thread array, and wait for all of them after returning to client
-				t.detach();
+				threads[i] = std::thread (check_consistency, sbp, std::ref(j), tail);
+				i++;
 			}
 			ring_incr(&rit);
 		}
@@ -778,7 +760,16 @@ tamed void process_tail_read_ex(svccb * sbp) {
 			LOG_ALERT << "spinning";
 		}
 
+		LOG_ALERT << "spinlock done";
 		sbp->replyref(to_rep);
+		LOG_ALERT << "replied to client";
+
+		for (i=0; i<chain_info->chain_size-1; i++) {
+			LOG_ALERT << "joining thread";
+			threads[i].join();
+		}
+
+		delete [] threads;
 
 		LOG_INFO << "after weakly consistent reply";
 		return;
@@ -926,6 +917,7 @@ tamed void process_head_write(svccb * sbp) {
 		Node tail;
 		int i;
 		int j;
+		thread* threads;
 	}
 
 	gettimeofday(&cur_time, NULL);
@@ -998,13 +990,14 @@ tamed void process_head_write(svccb * sbp) {
 		LOG_INFO << "starting synchronization";
 		j = 1;
 		rit = ring_succ(id);
-		for (i=0; i<chain_info->chain_size; i++) {
+		threads = new thread[chain_info->chain_size-1];
+		for (i=0; i<chain_info->chain_size-1; ) {
 			tail = rit->second;
 			if (my_id != tail.getId()) {
-				std::thread t(eventual_propagate, sbp, std::ref(j), tail, prop_arg);
+				threads[i] = std::thread (eventual_propagate, sbp, std::ref(j), tail, prop_arg);
 
 //TODO: don't detach thread, store in a thread array, and wait for all of them after returning to client
-				t.detach();
+				i++;
 			}
 			ring_incr(&rit);
 		}
@@ -1015,6 +1008,12 @@ tamed void process_head_write(svccb * sbp) {
 			LOG_ALERT << "spinning";
 		}
 		sbp->replyref(true);
+		for (i=0; i<chain_info->chain_size-1; i++) {
+			LOG_ALERT << "joining thread";
+			threads[i].join();
+		}
+
+		delete [] threads;
 		return;
 	}
 
@@ -1217,9 +1216,12 @@ tamed void process_propagate(svccb * sbp) {
 		LOG_WARN << "stored";
 
 		if(kit != key_meta_list.end() &&
-			((timercmp(&kit->second.max_pending, &temppargver, >=) && parg.committed == false) ||
-			 (timercmp(&kit->second.committed, &temppargver, >=) && parg.committed == true))) {
-			 	LOG_WARN << "This is higher, propagate to senderTODO\n";
+			((timercmp(&kit->second.max_pending, &temppargver, >) && parg.committed == false) ||
+			 (timercmp(&kit->second.committed, &temppargver, >) && parg.committed == true))) {
+			 	LOG_WARN << "This is higher, propagate to sender";
+				LOG_WARN << "max pending sec " << kit->second.max_pending.tv_sec << " and usec " << kit->second.max_pending.tv_usec;
+				LOG_WARN << "committed sec " << kit->second.committed.tv_sec << " and usec " << kit->second.committed.tv_usec;
+				LOG_WARN << "temppargver sec " << temppargver.tv_sec << " and usec " << temppargver.tv_usec;
 				//Find tail
 				caller_id.set_from_rpc(parg.from_node_id);
 				rit = ring_succ(id);
