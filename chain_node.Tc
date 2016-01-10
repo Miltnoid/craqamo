@@ -600,7 +600,7 @@ tamed void check_consistency_internal(svccb * sbp, Node tl, timeval localtime, r
 		wrt.chain_id = chain_id;
 		wrt.max_pending = remotetime;
 		wrt.committed = remotetime;
-		wrt.last_strong_consistent = false;
+		wrt.last_strong_consistent = f;
 		wrt.is_head = true; //TODO
 		key_meta_list[id] = wrt;
 
@@ -1644,6 +1644,8 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 			ring_incr(&succs);
 			succ = succs->second;
 		}
+
+		arg.strong_consistency = true;
 
 		if(send_committed) {
 			arg.id = id.get_rpc_id();
