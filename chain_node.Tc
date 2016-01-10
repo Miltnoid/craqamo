@@ -600,7 +600,7 @@ tamed void check_consistency_internal(svccb * sbp, Node tl, timeval localtime, r
 		wrt.chain_id = chain_id;
 		wrt.max_pending = remotetime;
 		wrt.committed = remotetime;
-		wrt.last_strong_consistent = f;
+		wrt.last_strong_consistent = false;
 		wrt.is_head = true; //TODO
 		key_meta_list[id] = wrt;
 
