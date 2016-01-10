@@ -653,7 +653,7 @@ void config_write(const config_t *config, FILE *stream)
 int config_read_file(config_t *config, const char *filename)
 {
   int ret;
-  FILE *stream = fopen(filename, "rt");
+  FILE *stream = fopen(filename, "r");
   if(! stream)
   {
     config->error_text = __io_error;
