@@ -168,7 +168,6 @@ tamed static void set_key(ID_Value * chain_id, ID_Value * id, cbb cb) {
 		ostringstream out;
 		clnt_stat e;
 		int fd;
-		int rnd;
 		head_write_arg wrt_arg;
 		bool rc;
 		map<ID_Value, blob>::iterator it;
@@ -181,20 +180,14 @@ tamed static void set_key(ID_Value * chain_id, ID_Value * id, cbb cb) {
 		return;
 	}
 
-	twait{ get_chain_info(chain_id, mkevent(chain_info)); }
-	if(chain_info == NULL) {
+	twait { get_rpc_cli (succ->second.getIp().c_str(),succ->second.getPort(), &cli, &chain_node_1, mkevent(fd)); }
+	if(fd < 0) {
 		TRIGGER(cb, false);
 		return;
 	}
 
-	succ = ring_succ(*id);
-	rnd = rand() % chain_info->chain_size;
-	for( ; rnd>0; rnd--) {
-		ring_incr(&succ);
-	}
-
-	twait { get_rpc_cli (succ->second.getIp().c_str(),succ->second.getPort(), &cli, &chain_node_1, mkevent(fd)); }
-	if(fd < 0) {
+	twait{ get_chain_info(chain_id, mkevent(chain_info)); }
+	if(chain_info == NULL) {
 		TRIGGER(cb, false);
 		return;
 	}
@@ -202,7 +195,7 @@ tamed static void set_key(ID_Value * chain_id, ID_Value * id, cbb cb) {
 	wrt_arg.chain = chain_id->get_rpc_id();
 	wrt_arg.id = id->get_rpc_id();
 	wrt_arg.data = it->second;
-	wrt_arg.strong_consistency = false;
+	wrt_arg.strong_consistency = true;
 	twait {	cli->call(HEAD_WRITE, &wrt_arg, &rc,  mkevent(e)); }
 	if(e || !rc) {
 		TRIGGER(cb, false);
@@ -249,7 +242,7 @@ tamed static void get_key(ID_Value * chain_id, ID_Value * id, cb_blob_ptr cb) {
 	arg.id = id->get_rpc_id();
 	arg.chain = chain_id->get_rpc_id();
 	arg.dirty = false;
-	arg.strong_consistency = false;
+	arg.strong_consistency = true;
 	arg.no_consistency = false;
 	twait {	cli->call(TAIL_READ_EX, &arg, &ret,  mkevent(e)); }
 	if(e) {

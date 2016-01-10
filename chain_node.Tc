@@ -68,7 +68,7 @@ typedef map<ID_Value, key_meta>::iterator key_iter;
 static void get_chain_info(ID_Value chain_id, ptr<callback<void, ptr<chain_meta> > > cb, CLOSURE);
 static void process_query_obj_ver(svccb * sbp, CLOSURE);
 static void process_tail_read(svccb * sbp, CLOSURE);
-static void check_consistency_internal(svccb * sbp, Node tl, CLOSURE);
+static void check_consistency_internal(svccb * sbp, Node tl, timeval localtime, rpc_hash chain, key_meta wrt, ID_Value chain_id, blob data, CLOSURE);
 static void eventual_propagate_internal(svccb * sbp, Node tl, propagate_arg parg, CLOSURE);
 static void process_tail_read_ex(svccb * sbp, CLOSURE);
 static void process_head_write(svccb * sbp, CLOSURE);
@@ -523,15 +523,18 @@ tamed void process_tail_read(svccb * sbp) {
 
 }
 
-tamed void check_consistency_internal(svccb * sbp, Node tl) {
+tamed void check_consistency_internal(svccb * sbp, Node tl, timeval localtime, rpc_hash chain, key_meta wrt, ID_Value chain_id, blob data) {
 	tvars {
 		Node tail;
 
 		ptr<aclnt> cli;
 		rpc_hash qry_id;
 		query_obj_ver_ret ret;
+		tail_read_ex_arg tr_arg;
+		tail_read_ex_ret tr_ret;
 		tail_read_ex_ret empty;
 
+		bool set_succ;
 
 		ptr<blob> repl;
 		ID_Value id;
@@ -549,6 +552,7 @@ tamed void check_consistency_internal(svccb * sbp, Node tl) {
 		long sec_diff;
 		long usec_diff;
 		int num_responses;
+		timeval remotetime;
 	}
 
 	tail = tl;
@@ -578,26 +582,41 @@ tamed void check_consistency_internal(svccb * sbp, Node tl) {
 			return;
 		}
 
-//TODO: synchronize the data, if the data is out of sync, send propagates, or retrieve the correct data, if it isnt, dont
-/*		//See if we have the version the tail would return
-		kit = it->second.pending_list.find(from_rpc_mytimeval(ret.hist));
-		if(kit == it->second.pending_list.end()) {
-			kit = it->second.pending_list.find(it->second.max_pending); //really wrong
-			if(kit == it->second.pending_list.end()) {
-				return;
-			}
-		}
-
-		//Return tail's committed version
-		to_rep.data = kit->second;
-		to_rep.dirty = true;
-		to_rep.ver = ret.hist;
-		sbp->replyref(to_rep);
-
-		gettimeofday(&cur_time, NULL);
-		LOG_ALERT << "READ_DONE\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";*/
-
 		return;
+	}
+
+	remotetime = from_rpc_mytimeval(ret.pend);
+
+	if (timercmp(&remotetime, &localtime, >)) {
+		LOG_INFO << "remote is more updated, update local";
+		tr_arg.chain = chain;
+		tr_arg.id = qry_id;
+		tr_arg.dirty = true;
+		tr_arg.no_consistency = true;
+		tr_arg.strong_consistency = false;
+		twait {	cli->call(TAIL_READ_EX, &qry_id, &tr_ret,  mkevent(e)); }
+
+		//Update key if this is not the first
+		wrt.chain_id = chain_id;
+		wrt.max_pending = remotetime;
+		wrt.committed = remotetime;
+		wrt.last_strong_consistent = false;
+		wrt.is_head = true; //TODO
+		key_meta_list[id] = wrt;
+
+		twait { storage->set(id, &tr_ret.data, mkevent(set_succ)); }
+	}
+	else if (timercmp(&remotetime, &localtime, <)) {
+		LOG_INFO << "local is more updated, update remote";
+		propagate_arg prop_arg;
+		prop_arg.chain = chain;
+		prop_arg.id = qry_id;
+		prop_arg.ver = to_rpc_mytimeval(localtime);
+		prop_arg.data = data;
+		prop_arg.committed = true;
+		prop_arg.strong_consistency = false;
+		prop_arg.from_node_id = my_id.get_rpc_id();
+		eventual_propagate_internal(sbp, tl, prop_arg);
 	}
 }
 
@@ -667,8 +686,8 @@ void eventual_propagate(svccb * sbp, int const & counter, Node tl, propagate_arg
 	}
 }
 
-void check_consistency(svccb * sbp, int const & counter, Node tl) {
-	check_consistency_internal(sbp, tl);
+void check_consistency(svccb * sbp, int const & counter, Node tl, timeval localtime, rpc_hash chain, key_meta wrt, ID_Value chain_id, blob data) {
+	check_consistency_internal(sbp, tl, localtime, chain, wrt, chain_id, data);
 
 	if (&counter != NULL) {
 		int & counttemp = const_cast<int &>(counter);
@@ -703,6 +722,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		long sec_diff;
 		long usec_diff;
 		int num_responses;
+		thread* threads;
 	}
 	gettimeofday(&cur_time, NULL);
 	LOG_ALERT << "READ\t" << cur_time.tv_sec << "\t" << cur_time.tv_usec << "\n";
@@ -734,6 +754,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		to_rep.dirty = false;
 		to_rep.ver = to_rpc_mytimeval(it->second.committed);
 		sbp->replyref(to_rep);
+		return;
 	}
 
 	if (!parg.strong_consistency) {
@@ -761,13 +782,12 @@ tamed void process_tail_read_ex(svccb * sbp) {
 		LOG_INFO << "starting synchronization";
 		j = 1;
 		rit = ring_succ(id);
-		for (i=0; i<chain_info->chain_size; i++) {
+		threads = new thread[chain_info->chain_size-1];
+		for (i=0; i<chain_info->chain_size-1; ) {
 			tail = rit->second;
 			if (my_id != tail.getId()) {
-				std::thread t(check_consistency, sbp, std::ref(j), tail);
-
-//TODO: don't detach thread, store in a thread array, and wait for all of them after returning to client
-				t.detach();
+				threads[i] = std::thread (check_consistency, sbp, std::ref(j), tail, it->second.committed, parg.chain, it->second, chain_id, *repl);
+				i++;
 			}
 			ring_incr(&rit);
 		}
@@ -778,7 +798,16 @@ tamed void process_tail_read_ex(svccb * sbp) {
 			LOG_ALERT << "spinning";
 		}
 
+		LOG_ALERT << "spinlock done";
 		sbp->replyref(to_rep);
+		LOG_ALERT << "replied to client";
+
+		for (i=0; i<chain_info->chain_size-1; i++) {
+			LOG_ALERT << "joining thread";
+			threads[i].join();
+		}
+
+		delete [] threads;
 
 		LOG_INFO << "after weakly consistent reply";
 		return;
@@ -926,6 +955,7 @@ tamed void process_head_write(svccb * sbp) {
 		Node tail;
 		int i;
 		int j;
+		thread* threads;
 	}
 
 	gettimeofday(&cur_time, NULL);
@@ -998,13 +1028,14 @@ tamed void process_head_write(svccb * sbp) {
 		LOG_INFO << "starting synchronization";
 		j = 1;
 		rit = ring_succ(id);
-		for (i=0; i<chain_info->chain_size; i++) {
+		threads = new thread[chain_info->chain_size-1];
+		for (i=0; i<chain_info->chain_size-1; ) {
 			tail = rit->second;
 			if (my_id != tail.getId()) {
-				std::thread t(eventual_propagate, sbp, std::ref(j), tail, prop_arg);
+				threads[i] = std::thread (eventual_propagate, sbp, std::ref(j), tail, prop_arg);
 
 //TODO: don't detach thread, store in a thread array, and wait for all of them after returning to client
-				t.detach();
+				i++;
 			}
 			ring_incr(&rit);
 		}
@@ -1015,6 +1046,12 @@ tamed void process_head_write(svccb * sbp) {
 			LOG_ALERT << "spinning";
 		}
 		sbp->replyref(true);
+		for (i=0; i<chain_info->chain_size-1; i++) {
+			LOG_ALERT << "joining thread";
+			threads[i].join();
+		}
+
+		delete [] threads;
 		return;
 	}
 
@@ -1217,9 +1254,12 @@ tamed void process_propagate(svccb * sbp) {
 		LOG_WARN << "stored";
 
 		if(kit != key_meta_list.end() &&
-			((timercmp(&kit->second.max_pending, &temppargver, >=) && parg.committed == false) ||
-			 (timercmp(&kit->second.committed, &temppargver, >=) && parg.committed == true))) {
-			 	LOG_WARN << "This is higher, propagate to senderTODO\n";
+			((timercmp(&kit->second.max_pending, &temppargver, >) && parg.committed == false) ||
+			 (timercmp(&kit->second.committed, &temppargver, >) && parg.committed == true))) {
+			 	LOG_WARN << "This is higher, propagate to sender";
+				LOG_WARN << "max pending sec " << kit->second.max_pending.tv_sec << " and usec " << kit->second.max_pending.tv_usec;
+				LOG_WARN << "committed sec " << kit->second.committed.tv_sec << " and usec " << kit->second.committed.tv_usec;
+				LOG_WARN << "temppargver sec " << temppargver.tv_sec << " and usec " << temppargver.tv_usec;
 				//Find tail
 				caller_id.set_from_rpc(parg.from_node_id);
 				rit = ring_succ(id);
@@ -1604,6 +1644,8 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 			ring_incr(&succs);
 			succ = succs->second;
 		}
+
+		arg.strong_consistency = true;
 
 		if(send_committed) {
 			arg.id = id.get_rpc_id();

@@ -165,6 +165,7 @@ bin_PROGRAMS = chain_node \
                test/reader_sc \
                test/single_reader \
                test/read_write \
+               test/read_write_sc \
                test/get_chain_info \
                test/transaction_tester \
                test/bulk_loader \
@@ -180,6 +181,7 @@ test_reader_SOURCES = test/reader.Tc $(OBJS)
 test_reader_sc_SOURCES = test/reader_sc.Tc $(OBJS)
 test_single_reader_SOURCES = test/single_reader.Tc $(OBJS)
 test_read_write_SOURCES = test/read_write.Tc $(OBJS)
+test_read_write_sc_SOURCES = test/read_write_sc.Tc $(OBJS)
 test_get_chain_info_SOURCES = test/get_chain_info.Tc $(OBJS)
 test_transaction_tester_SOURCES = test/transaction_tester.Tc $(OBJS)
 test_bulk_loader_SOURCES = test/bulk_loader.Tc $(OBJS)
