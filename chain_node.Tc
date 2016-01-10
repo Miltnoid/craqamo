@@ -2473,6 +2473,7 @@ static void log4cpp_init(string file, string priority) {
 tamed static
 void main2(int argc, char **argv) {
 	int listen_port;
+	int external_port;
 	string zookeeper_list;
 	string log_file;
 	string log_priority;
@@ -2513,7 +2514,12 @@ void main2(int argc, char **argv) {
 		cfg.lookupValue("node.datacenter", datacenter);
 
 		start_rpc_srv(listen_port);
-		register_to_manager(listen_port, zookeeper_list);
+
+		if (cfg.lookupValue("node.extport", external_port)){
+			register_to_manager(external_port, zookeeper_list);
+		}else {
+			register_to_manager(listen_port, zookeeper_list);
+		}
 
 		cfg.lookupValue("node.storage", s_storage);
 
