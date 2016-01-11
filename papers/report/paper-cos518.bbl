@@ -1,0 +1,22 @@
+\begin{thebibliography}{2}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[DeCandia et~al.(2007)DeCandia, Hastorun, Jampani, Kakulapati,
+  Lakshman, Pilchin, Sivasubramanian, Vosshall, and Vogels]{decandia2007dynamo}
+G.~DeCandia, D.~Hastorun, M.~Jampani, G.~Kakulapati, A.~Lakshman, A.~Pilchin,
+  S.~Sivasubramanian, P.~Vosshall, and W.~Vogels.
+\newblock Dynamo: amazon's highly available key-value store.
+\newblock In \emph{ACM SIGOPS Operating Systems Review}, volume~41, pages
+  205--220. ACM, 2007.
+
+\bibitem[Terrace and Freedman(2009)]{terrace2009object}
+J.~Terrace and M.~J. Freedman.
+\newblock Object storage on craq: High-throughput chain replication for
+  read-mostly workloads.
+\newblock In \emph{USENIX Annual Technical Conference}. San Diego, CA, 2009.
+
+\end{thebibliography}

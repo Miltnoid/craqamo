@@ -1,0 +1,49 @@
+This is BibTeX, Version 0.99d (TeX Live 2014)
+Capacity: max_strings=35307, hash_size=35307, hash_prime=30011
+The top-level auxiliary file: paper-cos518.aux
+The style file: abbrvnat.bst
+Database file #1: ref.bib
+Warning--I didn't find a database entry for "coral:nsdi04"
+Warning--can't use both volume and number fields in decandia2007dynamo
+You've used 2 entries,
+            2773 wiz_defined-function locations,
+            608 strings with 5073 characters,
+and the built_in function-call counts, 1392 in all, are:
+= -- 119
+> -- 105
+< -- 3
++ -- 35
+- -- 33
+* -- 116
+:= -- 212
+add.period$ -- 8
+call.type$ -- 2
+change.case$ -- 17
+chr.to.int$ -- 2
+cite$ -- 5
+duplicate$ -- 56
+empty$ -- 95
+format.name$ -- 37
+if$ -- 294
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 2
+newline$ -- 18
+num.names$ -- 8
+pop$ -- 39
+preamble$ -- 1
+purify$ -- 15
+quote$ -- 0
+skip$ -- 48
+stack$ -- 0
+substring$ -- 36
+swap$ -- 15
+text.length$ -- 2
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 22
+warning$ -- 1
+while$ -- 9
+width$ -- 0
+write$ -- 35
+(There were 2 warnings)
