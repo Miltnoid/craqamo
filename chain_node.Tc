@@ -601,7 +601,12 @@ tamed void check_consistency_internal(svccb * sbp, Node tl, timeval localtime, r
 		wrt.max_pending = remotetime;
 		wrt.committed = remotetime;
 		wrt.last_strong_consistent = false;
-		wrt.is_head = true; //TODO
+		wrt.is_head = false;
+		if(chain_info->chain_size == 1) {
+			wrt.is_tail = true;
+		} else {
+			wrt.is_tail = false;
+		}
 		key_meta_list[id] = wrt;
 
 		twait { storage->set(id, &tr_ret.data, mkevent(set_succ)); }
@@ -941,6 +946,7 @@ tamed void process_tail_read_ex(svccb * sbp) {
 tamed void process_head_write(svccb * sbp) {
 	tvars {
 		head_write_arg parg;
+		bool in_succ;
 		propagate_arg prop_arg;
 		ID_Value id;
 		ID_Value chain_id;
@@ -954,6 +960,7 @@ tamed void process_head_write(svccb * sbp) {
 		bool set_succ;
 		Node tail;
 		int i;
+		ring_iter t;
 		int j;
 		thread* threads;
 	}
@@ -993,14 +1000,7 @@ tamed void process_head_write(svccb * sbp) {
 			wrt.max_pending = max_pending;
 			wrt.committed = max_pending;
 			wrt.last_strong_consistent = false;
-			if(chain_info->chain_size == 1) {
-				wrt.is_tail = true;
-			} else {
-				wrt.is_tail = false;
-			}
-			wrt.is_head = true; //TODO
 			wrt.chain_id = chain_id;
-			key_meta_list[id] = wrt;
 		}
 		else {
 			//old
@@ -1011,9 +1011,23 @@ tamed void process_head_write(svccb * sbp) {
 			wrt.max_pending = wrt.max_pending;
 			wrt.committed = wrt.max_pending;
 			wrt.last_strong_consistent = false;
-			wrt.is_head = true; //TODO
-			key_meta_list[id] = wrt;
 		}
+		t = ring_succ(id);
+		in_succ = false;
+		for(i=0; i<chain_info->chain_size; i++) {
+			if(t == my_node_ptr) {
+				in_succ = true;
+				break;
+			}
+			ring_incr(&t);
+		}
+		if(i == chain_info->chain_size-1) {
+        	LOG_WARN << "I am the tail of this chain\n";
+			wrt.is_tail = true;
+ 		}
+		if(i == 0)
+			wrt.is_head = true;
+		key_meta_list[id] = wrt;
 
 		twait { storage->set(id, &parg.data, mkevent(set_succ)); }
 
@@ -1065,7 +1079,8 @@ tamed void process_head_write(svccb * sbp) {
 	it = key_meta_list.find(id);
 
 	//If we're not the head, reject the request
-	if(it != key_meta_list.end() && !(it->second).is_head ) {
+	if(it != key_meta_list.end() && !(it->second).is_head &&
+		(it->second.last_strong_consistent || !id.betweenIncl(parent_ptr->first, my_id))) {
 		LOG_DEBUG << "Rejecting head_write because we are not the head 1";
 		sbp->replyref(false);
 		return;
@@ -1228,11 +1243,12 @@ tamed void process_propagate(svccb * sbp) {
 		wrt.committed = temppargver;
 		wrt.max_pending = temppargver;
 		wrt.pending_list.clear();
-		wrt.is_tail = false;
 		wrt.last_strong_consistent = false;
 		wrt.chain_id = chain_id;
 		t = ring_succ(id);
 		in_succ = false;
+		wrt.is_tail = false;
+		wrt.is_head = false;
 		for(i=0; i<chain_info->chain_size; i++) {
 			if(t == my_node_ptr) {
 				in_succ = true;
@@ -1244,8 +1260,9 @@ tamed void process_propagate(svccb * sbp) {
         	LOG_WARN << "I am the tail of this chain\n";
 			wrt.is_tail = true;
  		}
-		wrt.is_tail = true;
-		wrt.is_head = true;//TODO
+		if (i==0) {
+			wrt.is_head = true;
+		}
 		wrt.chain_id = chain_id;
 		key_meta_list[id] = wrt;
 		
@@ -1610,6 +1627,8 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 		ptr<Node> ext_succ;
 	}
 
+	LOG_WARN << "we get here1?";
+
 	twait{ get_chain_info(chain_id, mkevent(chain_info)); }
 	if(chain_info == NULL) {
 		LOG_FATAL << "Couldn't get chain info in propagate func!\n";
@@ -1619,7 +1638,9 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 
 	backoff = 0;
 	rpc_ret = false;
+	LOG_WARN << "we get here2?";
 	while(!rpc_ret) {
+		LOG_WARN << "we get here3?";
 		it = key_meta_list.find(id);
 		if(it == key_meta_list.end()) {
 			TRIGGER(cb, false);
@@ -1629,6 +1650,7 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 		//if tail of last data center, done
 		if(it->second.is_tail &&
 				chain_info->data_centers[chain_info->data_centers.size()-1] == datacenter) {
+			LOG_WARN << "we get here4?";
 			TRIGGER(cb, true);
 			return;
 		}
@@ -1640,6 +1662,7 @@ tamed void propagate(ID_Value chain_id, ID_Value id, bool send_committed, cbb cb
 			}
 			succ = *ext_succ;
 		} else {
+			LOG_WARN << "we get here5?";
 			succs = my_node_ptr;
 			ring_incr(&succs);
 			succ = succs->second;
