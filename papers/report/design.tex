@@ -35,4 +35,15 @@ When an eventually consistent write operation is performed on a node. The node f
 
 
 \subsection{Implementation}
+Our prototype implementation of CRAQamo was implemented in approximately 3700 lines of C++,
+built upon the a prototype implementation of CRAQ implemented in approximately 3000 lines of C++.
+Like CRAQ, CRAQamo uses the Tame \cite{tame} extension to the SFS asynchronous I/O and RPC libraries \cite{sfs} and all network functionality between CRAQamo RPC nodes is exposed via Sun RPC interfaces.
+Unlike CRAQ, CRAQamo also uses the built in C++ multithreading library.
+To implement the broadcast reads and writes for consistency checks, CRAQamo needs to spin up multiple threads, and wait until $w$ of them complete their calls before returning.
+Even after returning, however, CRAQamo needs to continue the consistency checks for the nodes that haven't yet completed.
+This proved too difficult of a pattern to express in Tame, so we instead built our own manner of multithreading for these checks.
+However, for all other asynchronous calls, we used Tame to decrease code complexity.
 
+Our integration with ZooKeeper was provided with by the expansion of CRAQ, and was integrated in the same way, with CRAQamo nodes able to query the same ZooKeeper files as CRAQ nodes.
+Furthermore, expansion of CRAQ gave us free chain node functionality and the ability to handle membership changes dynamically.
+Because data is stored in the same manner as CRAQ, and because no node has special knowledge in CRAQamo, CRAQ's algorithm for membership changes proves sufficient for CRAQamo.
