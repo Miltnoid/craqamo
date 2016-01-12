@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015) (preloaded format=pdflatex 2015.5.24)  12 JAN 2016 11:26
+This is pdfTeX, Version 3.14159265-2.6-1.40.16 (TeX Live 2015) (preloaded format=pdflatex 2015.5.24)  12 JAN 2016 12:54
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -588,46 +588,42 @@ Underfull \vbox (badness 1484) has occurred while \output is active []
 File: figures/latency_0.pdf Graphic file (type pdf)
 
 <use figures/latency_0.pdf>
-Package pdftex.def Info: figures/latency_0.pdf used on input line 15.
+Package pdftex.def Info: figures/latency_0.pdf used on input line 14.
 (pdftex.def)             Requested size: 229.8775pt x 188.77802pt.
-LaTeX Font Info:    Try loading font information for T1+phv on input line 16.
+LaTeX Font Info:    Try loading font information for T1+phv on input line 15.
 
 (/usr/local/texlive/2015/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2001/06/04 scalable font definitions for T1/phv.
 )
 LaTeX Font Info:    Font shape `T1/phv/m/n' will be
-(Font)              scaled to size 9.19998pt on input line 16.
+(Font)              scaled to size 9.19998pt on input line 15.
 
 <figures/latency_50.pdf, id=103, 513.92pt x 419.5675pt>
 File: figures/latency_50.pdf Graphic file (type pdf)
 
 <use figures/latency_50.pdf>
-Package pdftex.def Info: figures/latency_50.pdf used on input line 22.
+Package pdftex.def Info: figures/latency_50.pdf used on input line 21.
 (pdftex.def)             Requested size: 229.8775pt x 187.67685pt.
 
 <figures/latency_100.pdf, id=104, 513.92pt x 419.5675pt>
 File: figures/latency_100.pdf Graphic file (type pdf)
 
 <use figures/latency_100.pdf>
-Package pdftex.def Info: figures/latency_100.pdf used on input line 29.
+Package pdftex.def Info: figures/latency_100.pdf used on input line 28.
 (pdftex.def)             Requested size: 229.8775pt x 187.67685pt.
- [3 <./figures/latency_0.pdf>]
-Underfull \hbox (badness 1478) in paragraph at lines 38--39
+
+Underfull \hbox (badness 1478) in paragraph at lines 37--38
 []\T1/ptm/m/n/10 Under per-fect net-work con-di-tions , EC reads are
  []
 
-
-Underfull \vbox (badness 1077) has occurred while \output is active []
-
-
-<figures/mix.pdf, id=122, 513.92pt x 419.5675pt>
+[3] <figures/mix.pdf, id=116, 513.92pt x 419.5675pt>
 File: figures/mix.pdf Graphic file (type pdf)
  <use figures/mix.pdf>
-Package pdftex.def Info: figures/mix.pdf used on input line 48.
+Package pdftex.def Info: figures/mix.pdf used on input line 47.
 (pdftex.def)             Requested size: 229.8775pt x 187.67685pt.
 )
-(./related.tex [4 <./figures/latency_50.pdf> <./figures/latency_100.pdf> <./fig
-ures/mix.pdf>]
+(./related.tex [4 <./figures/latency_0.pdf> <./figures/latency_50.pdf> <./figur
+es/latency_100.pdf> <./figures/mix.pdf>]
 Underfull \hbox (badness 1199) in paragraph at lines 13--15
 \T1/ptm/m/n/10 vides low la-tency, causal con-sis-tency, read-only and
  []
@@ -642,17 +638,17 @@ Package atveryend Info: Empty hook `AfterLastShipout' on input line 160.
 Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 160.
 Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 160.
 Package rerunfilecheck Info: File `paper-cos518.out' has not changed.
-(rerunfilecheck)             Checksum: BBA6EA231B93F743C093128AB5A244E2;1192.
+(rerunfilecheck)             Checksum: DBA7344CA17CFBF4A0A0736B04C36FBF;1184.
 Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 160.
  ) 
 Here is how much of TeX's memory you used:
  7281 strings out of 493089
  106375 string characters out of 6134842
- 195963 words of memory out of 5000000
+ 196963 words of memory out of 5000000
  10595 multiletter control sequences out of 15000+600000
  49811 words of font info for 73 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 30i,8n,43p,1337b,429s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 30i,8n,43p,1337b,425s stack positions out of 5000i,500n,10000p,200000b,80000s
 {/usr/local/texlive/2015/texmf-dist/fonts/enc/dvips/base/8r.enc}</usr/local/t
 exlive/2015/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/local/te
 xlive/2015/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texl
@@ -660,7 +656,7 @@ ive/2015/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/201
 5/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2015/texmf-di
 st/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2015/texmf-dist/fonts/t
 ype1/urw/times/utmri8a.pfb>
-Output written on paper-cos518.pdf (6 pages, 102864 bytes).
+Output written on paper-cos518.pdf (6 pages, 102839 bytes).
 PDF statistics:
  193 PDF objects out of 1000 (max. 8388607)
  169 compressed objects within 2 object streams

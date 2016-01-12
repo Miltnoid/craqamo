@@ -6,10 +6,9 @@ We deployed ZooKeeper service and the CRAQamo server nodes on Princeton Universi
 These machines have 4 Intel(R) Xeon(R) CPUs which each run at 3.07GHz. The nodes were configured to listen on local network ports for our testing to be both easier and more consistent. To simulate the high communication latency that might occur when servers are geopraphically separated or operating under bad network environment, we used ``ncat'' in port forwarding mode to receive request connections on a different network port, then relay the data with a controlled delay to the actual listening port of CRAQamo servers. The delay is inserted in a per data line fashion which differs from the per-packet latency that exists in real TCP/IP networks. In our setting the amount of delay in $x$ miliseconds will
 translate to $2x$ milisecond of round trip time, or RTT in real long range network communications. 
 
-We used a chain size of 3 nodes for the tests, and the eventually consistent requests are replied when 2 servers respond (including the one handling the request). A client program that generates requests at a fixed rate is used to test the latency of CRAQamo's operations. 
+We used a chain size of 3 nodes for the tests, and the eventually consistent requests are replied when 2 servers respond (including the one handling the request). A client program that generates requests at a fixed rate is used to test the latency of CRAQamo's operations. For our latency tests, we sent the server read and write requests at a rate much underneath the servers' throughput threshold, and calculated the time from request to response.  To generate the desired proportions of operations, we ran multiple clients sending requests at a configurable number of requests per second.  For our throughput tests, we sent the server read and write requests at a rate higher than the throughput, and saw how many it was able to respond to in $5$ seconds.
 
-\subsection{Effects of network delay on request latency}
-\vspace{-5mm}
+\subsection{Effects of network delay on latency}
 \begin{figure}[hbt]
 \centering
 \includegraphics[width=\linewidth]{figures/latency_0.pdf}
