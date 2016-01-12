@@ -9,7 +9,7 @@
 \BOOKMARK [2][]{subsection.2.7}{Implementation}{section.2}% 9
 \BOOKMARK [1][]{section.3}{Evaluation}{}% 10
 \BOOKMARK [2][]{subsection.3.1}{Experiment setups}{section.3}% 11
-\BOOKMARK [2][]{subsection.3.2}{Effects of network delay on request latency}{section.3}% 12
+\BOOKMARK [2][]{subsection.3.2}{Effects of network delay on latency}{section.3}% 12
 \BOOKMARK [2][]{subsection.3.3}{Effect of mixing different consistency models}{section.3}% 13
 \BOOKMARK [1][]{section.4}{Related Work}{}% 14
 \BOOKMARK [2][]{subsection.4.1}{Chain Replication \(CR\)}{section.4}% 15
