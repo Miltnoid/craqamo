@@ -18,4 +18,4 @@ legend({'read', 'write'}, 'fontsize', 12);
 ax = gca;
 ax.XTick = [1 2 3 4 5];
 ax.XTickLabel = {'0%', '25%', '50%', '75%', '100%'};
-title('Effect of mixing different consistency models');
+title('Effect of mixing different consistency models on average latency');
