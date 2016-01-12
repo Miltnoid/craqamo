@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  12 JAN 2016 13:39
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  12 JAN 2016 14:08
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -567,11 +567,6 @@ LaTeX Font Info:    Font shape `T1/ptm/bx/n' in size <12> not available
 LaTeX Font Info:    Font shape `T1/ptm/bx/n' in size <10> not available
 (Font)              Font shape `T1/ptm/b/n' tried instead on input line 13.
 
-Underfull \hbox (badness 1360) in paragraph at lines 13--14
-\T1/ptm/b/n/10 Broadcasting data  \T1/ptm/m/n/10 In CRAQ, data is only passed
- []
-
-
 Underfull \hbox (badness 1694) in paragraph at lines 13--14
 \T1/ptm/m/n/10 be-tween neigh-bor-ing nodes, which causes the write
  []
@@ -579,6 +574,16 @@ Underfull \hbox (badness 1694) in paragraph at lines 13--14
 
 Underfull \hbox (badness 10000) in paragraph at lines 13--14
 
+ []
+
+
+Underfull \hbox (badness 1997) in paragraph at lines 15--16
+\T1/ptm/b/n/10 Comparing ver-sions   \T1/ptm/m/n/10 Like CRAQ, each node in
+ []
+
+
+Underfull \hbox (badness 1478) in paragraph at lines 15--16
+\T1/ptm/m/n/10 the chain also store mul-ti-ple ver-sions of ob-jects in
  []
 
 
@@ -651,11 +656,6 @@ Package pdftex.def Info: figures/throughput.pdf used on input line 55.
 (pdftex.def)             Requested size: 229.8775pt x 185.14163pt.
 ) (./related.tex [4 <./figures/latency_0.pdf> <./figures/latency_50.pdf> <./fig
 ures/latency_100.pdf> <./figures/mix.pdf>]
-Underfull \hbox (badness 1087) in paragraph at lines 4--5
-\T1/ptm/m/n/10 es-pe-cially when the nodes are placed ge-o-graph-i-cally
- []
-
-
 Underfull \hbox (badness 10000) in paragraph at lines 4--5
 
  []
@@ -704,7 +704,7 @@ ive/2014/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/201
 4/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2014/texmf-di
 st/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/t
 ype1/urw/times/utmri8a.pfb>
-Output written on paper-cos518.pdf (6 pages, 105172 bytes).
+Output written on paper-cos518.pdf (6 pages, 105140 bytes).
 PDF statistics:
  178 PDF objects out of 1000 (max. 8388607)
  152 compressed objects within 2 object streams
