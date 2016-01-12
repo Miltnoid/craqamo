@@ -12,21 +12,21 @@ We used a chain size of 3 nodes for the tests, and the eventually consistent req
 \vspace{-5mm}
 \begin{figure}[hbt]
 \centering
-\includegraphics[width=\linewidth]{figures/latency_0.pdf}
+\includegraphics[width=0.95\linewidth]{figures/latency_0.pdf}
 \caption{with no network delay}
 \label{fig:latency_0}
 \end{figure}
 
 \begin{figure}[hbt]
 \centering
-\includegraphics[width=\linewidth]{figures/latency_50.pdf}
+\includegraphics[width=0.95\linewidth]{figures/latency_50.pdf}
 \caption{with 50ms network delay}
 \label{fig:latency_50}
 \end{figure}
 
 \begin{figure}[hbt]
 \centering
-\includegraphics[width=\linewidth]{figures/latency_100.pdf}
+\includegraphics[width=0.95\linewidth]{figures/latency_100.pdf}
 \caption{with 100ms network delay}
 \label{fig:latency_100}
 \end{figure}
@@ -45,12 +45,20 @@ When network delay is more significant at 100ms (200ms RTT), typical for a long 
 \vspace{-2mm}
 \begin{figure}[h]
 \centering
-\includegraphics[width=\linewidth]{figures/mix.pdf}
-\caption{mixing SC/EC operations}
+\includegraphics[width=0.95\linewidth]{figures/mix.pdf}
+\caption{mixing SC/EC operations - average latency}
 \label{fig:mix}
 \end{figure}
 \vspace{-5mm}
 
-To analyse the effect on latency of mixing SC/EC operations, we tested CRAQamo with varying proportions of EC/SC operations at 50\% writes and 50ms delay using the same setup from the previous section. The average latency of read and write operations (including both SC and EC) is shown in Figure \ref{fig:mix}.  As there are more EC operations inflight, the average latency dropped fast monotonically. Indeed EC operations can be executed much faster and are suitable for non-sensitive data.
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.95\linewidth]{figures/throughput.pdf}
+\caption{mixing SC/EC operations - write throughput}
+\label{fig:mix_throughput}
+\end{figure}
+\vspace{-5mm}
+
+To analyse the effect on latency of mixing SC/EC operations, we tested CRAQamo with varying proportions of EC/SC operations at 50\% writes and 50ms delay using the same setup from the previous section. The average latency of read and write operations (including both SC and EC) is shown in Figure \ref{fig:mix} and the write throughput is shown in Figure \ref{fig:mix_throughput}.  As there are more EC operations inflight, the average latency dropped fast monotonically and the write throughput improves significantly. Indeed EC operations can be executed much faster and are suitable for non-critical data. 
 
 
