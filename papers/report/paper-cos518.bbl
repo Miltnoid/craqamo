@@ -1,4 +1,4 @@
-\begin{thebibliography}{2}
+\begin{thebibliography}{4}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -12,6 +12,16 @@ G.~DeCandia, D.~Hastorun, M.~Jampani, G.~Kakulapati, A.~Lakshman, A.~Pilchin,
 \newblock Dynamo: amazon's highly available key-value store.
 \newblock In \emph{ACM SIGOPS Operating Systems Review}, volume~41, pages
   205--220. ACM, 2007.
+
+\bibitem[Krohn et~al.(2007)Krohn, Kohler, and Kaashoek]{tame}
+M.~Krohn, E.~Kohler, and M.~Kaashoek.
+\newblock Events can make sense.
+\newblock In \emph{USENIX Annual Technical Conference}, 2007.
+
+\bibitem[Mazierez et~al.(1999)Mazierez, Kaminsky, Kaashoek, and Witchel]{sfs}
+D.~Mazierez, M.~Kaminsky, M.~Kaashoek, and E.~Witchel.
+\newblock Separating key management from file system security.
+\newblock In \emph{Symposium on Operating Systems Principles}, 1999.
 
 \bibitem[Terrace and Freedman(2009)]{terrace2009object}
 J.~Terrace and M.~J. Freedman.

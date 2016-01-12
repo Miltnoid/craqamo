@@ -10,8 +10,8 @@
 \BOOKMARK [2][]{subsection.2.8}{Implementation}{section.2}% 10
 \BOOKMARK [1][]{section.3}{Evaluation}{}% 11
 \BOOKMARK [2][]{subsection.3.1}{Experiment setup}{section.3}% 12
-\BOOKMARK [2][]{subsection.3.2}{Write efficiency}{section.3}% 13
-\BOOKMARK [2][]{subsection.3.3}{Read efficiency}{section.3}% 14
+\BOOKMARK [2][]{subsection.3.2}{Performances under different latencies}{section.3}% 13
+\BOOKMARK [2][]{subsection.3.3}{Mixing different consistency models}{section.3}% 14
 \BOOKMARK [1][]{section.4}{Related Work}{}% 15
 \BOOKMARK [2][]{subsection.4.1}{Chain Replication \(CR\)}{section.4}% 16
 \BOOKMARK [2][]{subsection.4.2}{CRAQ}{section.4}% 17

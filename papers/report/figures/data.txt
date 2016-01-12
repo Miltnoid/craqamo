@@ -1,0 +1,101 @@
+numbers are: average, 1st, 50th, 99th
+
+0ms
+
+W   0%
+strong   read   0.618 0.236 0.417 7.459
+eventual read   0.872 0.39  0.778 6.52
+strong   write  0 0 0 0
+eventual write  0 0 0 0
+
+W  25%
+strong   read   0.707 0.269 0.471 8.529
+eventual read   0.896 0.4   0.658 1.35
+strong   write  1.903 1.536 1.856 2.337
+eventual write  1.498 0.519 0.675 8.877
+
+W  50%
+strong   read   1.059 0.235 0.667 6.364
+eventual read   1.314 0.394 0.922 8.078
+strong   write  1.834 1.008 1.867 2.716
+eventual write  1.286 0.405 0.864 8.256
+
+W  75%
+strong   read   1.839 0.349 0.446 14.02
+eventual read   1.333 0.601 0.865 6.703
+strong   write  1.834 1.008 1.867 2.716
+eventual write  0.929 0.399 0.724 6.529
+
+W 100%
+strong   read  0 0 0 0
+eventual read  0 0 0 0
+strong   write  1.700 0.928 1.762 2.092
+eventual write  0.836 0.423 0.657 7.08
+
+
+
+50ms
+
+W   0%
+strong   read   65.34 50.36 50.55 100.7
+eventual read   72.32 50.66 51.02 150.7
+strong   write  0 0 0 0
+eventual write  0 0 0 0
+
+W  25%
+strong   read   77.04 50.33 50.67 117.2
+eventual read   50.85 50.52 50.78 52.34
+strong   write  252.3 252.0 252.3 252.6
+eventual write  50.91 50.56 50.81 52.07
+
+W  50%
+strong   read   97.95 50.35 100.8 151.4
+eventual read   50.95 50.49 50.68 54.42
+strong   write  252.0 251.5 251.7 256.3
+eventual write  50.86 50.50 50.71 52.59
+
+W  75%
+strong   read   110.7 50.50 101.0 175.9
+eventual read   51.39 50.58 50.82 54.64
+strong   write  270.4 251.9 252.7 318.0
+eventual write  51.15 50.46 50.75 55.74
+
+W 100%
+strong   read  0 0 0 0
+eventual read  0 0 0 0
+strong   write  306.9 301.2 301.6 352.0
+eventual write  68.77 50.50 50.93 100.9
+
+
+
+100ms
+
+W   0%
+strong   read   196.2 100.4 200.5 400.7
+eventual read   209.1 100.6 200.8 401.2
+strong   write  0 0 0 0
+eventual write  0 0 0 0
+
+W  25%
+strong   read   335.7 100.4 328.1 601.8
+eventual read   156.7 100.6 101.1 301.3
+strong   write  521.8 502.3 503.0 541.0
+eventual write  100.9 100.7 100.9 101.2
+
+W  50%
+strong   read   248.5 100.4 240.4 501.2
+eventual read   133.9 100.6 101.3 301.1
+strong   write  648.3 601.1 602.0 702.3
+eventual write  132.5 100.6 101.3 300.6
+
+W  75%
+strong   read   277.6 100.6 201.2 500.7
+eventual read   101.0 100.7 100.9 101.8
+strong   write  880.8 701.1 867.8 999.1
+eventual write  152.1 100.5 101.9 301.1
+
+W 100%
+strong   read  0 0 0 0
+eventual read  0 0 0 0
+strong   write  919.9 701.5 947.9 999.5
+eventual write  217.7 100.6 200.9 400.8
