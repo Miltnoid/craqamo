@@ -6,7 +6,8 @@ We used Princeton University's $tux.cs.princeton.edu$ virtual machines.
 These machines have 4 Intel(R) Xeon(R) CPUs which each run at 3.07GHz.
 We used only local connections for our testing, to make the testing both easier, and more consistent.
 To simulate the high latency environment that would be run in practice,
-we used ncat to forward ports while adding the needed delay.
+we used ncat to forward ports while adding the needed delay. The amount of delay in $x$ miliseconds will
+translate to $2x$ milisecond of round trip time, or RTT in real long range network communications.
 We used a chain size of 3 nodes for the tests.
 
 
