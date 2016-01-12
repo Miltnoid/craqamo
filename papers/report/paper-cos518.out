@@ -2,18 +2,13 @@
 \BOOKMARK [1][]{section.2}{Design}{}% 2
 \BOOKMARK [2][]{subsection.2.1}{General framework}{section.2}% 3
 \BOOKMARK [2][]{subsection.2.2}{Original CRAQ capabilities}{section.2}% 4
-\BOOKMARK [2][]{subsection.2.3}{Broadcasting data}{section.2}% 5
-\BOOKMARK [2][]{subsection.2.4}{Comparing versions}{section.2}% 6
-\BOOKMARK [2][]{subsection.2.5}{Eventually consistent read}{section.2}% 7
-\BOOKMARK [2][]{subsection.2.6}{Eventually consistent write}{section.2}% 8
-\BOOKMARK [2][]{subsection.2.7}{Implementation}{section.2}% 9
-\BOOKMARK [1][]{section.3}{Evaluation}{}% 10
-\BOOKMARK [2][]{subsection.3.1}{Experiment setups}{section.3}% 11
-\BOOKMARK [2][]{subsection.3.2}{Effects of network delay on latency}{section.3}% 12
-\BOOKMARK [2][]{subsection.3.3}{Effect of mixing different consistency models}{section.3}% 13
-\BOOKMARK [1][]{section.4}{Related Work}{}% 14
-\BOOKMARK [2][]{subsection.4.1}{Chain Replication \(CR\)}{section.4}% 15
-\BOOKMARK [2][]{subsection.4.2}{CRAQ}{section.4}% 16
-\BOOKMARK [2][]{subsection.4.3}{Dynamo}{section.4}% 17
-\BOOKMARK [2][]{subsection.4.4}{Eiger}{section.4}% 18
-\BOOKMARK [1][]{section.5}{Conclusions}{}% 19
+\BOOKMARK [2][]{subsection.2.3}{Internal methods}{section.2}% 5
+\BOOKMARK [2][]{subsection.2.4}{Eventually consistent read}{section.2}% 6
+\BOOKMARK [2][]{subsection.2.5}{Eventually consistent write}{section.2}% 7
+\BOOKMARK [2][]{subsection.2.6}{Implementation}{section.2}% 8
+\BOOKMARK [1][]{section.3}{Evaluation}{}% 9
+\BOOKMARK [2][]{subsection.3.1}{Experiment setups}{section.3}% 10
+\BOOKMARK [2][]{subsection.3.2}{Effects of network delay on latency}{section.3}% 11
+\BOOKMARK [2][]{subsection.3.3}{Effect of mixing different consistency models}{section.3}% 12
+\BOOKMARK [1][]{section.4}{Related Work}{}% 13
+\BOOKMARK [1][]{section.5}{Conclusions}{}% 14
