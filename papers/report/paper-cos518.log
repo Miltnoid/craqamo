@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  12 JAN 2016 02:54
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  12 JAN 2016 02:59
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -551,10 +551,6 @@ LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7> not available
 LaTeX Font Info:    Font shape `T1/ptm/bx/n' in size <14.4> not available
 (Font)              Font shape `T1/ptm/b/n' tried instead on input line 4.
 ) (./intro.tex
-Underfull \hbox (badness 10000) in paragraph at lines 4--5
-
- []
-
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <10> not available
 (Font)              Font shape `OT1/ptm/b/n' tried instead on input line 6.
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7.4> not available
@@ -562,126 +558,81 @@ LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <7.4> not available
 LaTeX Font Info:    Font shape `OT1/ptm/bx/n' in size <6> not available
 (Font)              Font shape `OT1/ptm/b/n' tried instead on input line 6.
 
-Underfull \hbox (badness 5288) in paragraph at lines 6--7
-[]\T1/ptm/m/n/10 CRAQ[[]] is a chain repli-ca-tion stor-age sys-tem
- []
-
-
-Underfull \hbox (badness 2150) in paragraph at lines 6--7
-\T1/ptm/m/n/10 con-sis-tency and high write through-put at the same
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 6--7
-
+Underfull \hbox (badness 1057) in paragraph at lines 6--7
+\T1/ptm/m/n/10 guar-an-tees strong con-sis-tency, but it tar-gets at read-
  []
 
 ) (./design.tex
 LaTeX Font Info:    Font shape `T1/ptm/bx/n' in size <12> not available
-(Font)              Font shape `T1/ptm/b/n' tried instead on input line 5.
-
-Underfull \hbox (badness 10000) in paragraph at lines 6--7
-
- []
-
-[1{/usr/local/texlive/2014/texmf-var/fonts/map/pdftex/updmap/pdftex.map}
+(Font)              Font shape `T1/ptm/b/n' tried instead on input line 4.
+ [1{/usr/local/texlive/2014/texmf-var/fonts/map/pdftex/updmap/pdftex.map}
 
 
 ]
-Underfull \hbox (badness 1817) in paragraph at lines 19--20
+Underfull \hbox (badness 1817) in paragraph at lines 18--19
 \T1/ptm/m/n/10 motely com-pare ver-sions of ob-jects be-tween nodes.
  []
 
 [2]) (./eval.tex
-Underfull \hbox (badness 10000) in paragraph at lines 6--9
+Underfull \hbox (badness 10000) in paragraph at lines 5--8
 \T1/ptm/m/n/10 We de-ployed ZooKeeper ser-vice and the
  []
 
 
-Underfull \hbox (badness 5475) in paragraph at lines 6--9
+Underfull \hbox (badness 5475) in paragraph at lines 5--8
 \T1/ptm/m/n/10 CRAQamo server nodes on Prince-ton Uni-ver-sity's
  []
 
 
-Underfull \hbox (badness 2088) in paragraph at lines 6--9
+Underfull \hbox (badness 2088) in paragraph at lines 5--8
 \T1/ptm/m/n/10 have 4 In-tel(R) Xeon(R) CPUs which each run at
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 6--9
-
  []
 
 <figures/latency_0.pdf, id=102, 510.90875pt x 419.5675pt>
 File: figures/latency_0.pdf Graphic file (type pdf)
 
 <use figures/latency_0.pdf>
-Package pdftex.def Info: figures/latency_0.pdf used on input line 16.
-(pdftex.def)             Requested size: 195.39728pt x 160.46162pt.
-LaTeX Font Info:    Try loading font information for T1+phv on input line 17.
+Package pdftex.def Info: figures/latency_0.pdf used on input line 15.
+(pdftex.def)             Requested size: 229.8775pt x 188.77802pt.
+LaTeX Font Info:    Try loading font information for T1+phv on input line 16.
 
 (/usr/local/texlive/2014/texmf-dist/tex/latex/psnfss/t1phv.fd
 File: t1phv.fd 2001/06/04 scalable font definitions for T1/phv.
 )
 LaTeX Font Info:    Font shape `T1/phv/m/n' will be
-(Font)              scaled to size 9.19998pt on input line 17.
+(Font)              scaled to size 9.19998pt on input line 16.
 
 <figures/latency_50.pdf, id=103, 513.92pt x 419.5675pt>
 File: figures/latency_50.pdf Graphic file (type pdf)
 
 <use figures/latency_50.pdf>
-Package pdftex.def Info: figures/latency_50.pdf used on input line 23.
-(pdftex.def)             Requested size: 195.39728pt x 159.52693pt.
+Package pdftex.def Info: figures/latency_50.pdf used on input line 22.
+(pdftex.def)             Requested size: 229.8775pt x 187.67685pt.
 
 <figures/latency_100.pdf, id=104, 513.92pt x 419.5675pt>
 File: figures/latency_100.pdf Graphic file (type pdf)
 
 <use figures/latency_100.pdf>
-Package pdftex.def Info: figures/latency_100.pdf used on input line 30.
-(pdftex.def)             Requested size: 195.39728pt x 159.52693pt.
-
-Underfull \hbox (badness 2503) in paragraph at lines 37--38
-\T1/ptm/m/n/10 the pro-por-tion of write re-quests to bet-ter il-lus-trate
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 37--38
-
- []
-
-[3 <./figures/latency_0.pdf>]
-Underfull \hbox (badness 1478) in paragraph at lines 40--41
+Package pdftex.def Info: figures/latency_100.pdf used on input line 29.
+(pdftex.def)             Requested size: 229.8775pt x 187.67685pt.
+ [3 <./figures/latency_0.pdf>]
+Underfull \hbox (badness 1478) in paragraph at lines 38--39
 []\T1/ptm/m/n/10 Under per-fect net-work con-di-tions , EC reads are
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 40--41
+Underfull \vbox (badness 1077) has occurred while \output is active []
 
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 44--45
-
- []
 
 <figures/mix.pdf, id=122, 513.92pt x 419.5675pt>
 File: figures/mix.pdf Graphic file (type pdf)
  <use figures/mix.pdf>
-Package pdftex.def Info: figures/mix.pdf used on input line 53.
-(pdftex.def)             Requested size: 195.39728pt x 159.52693pt.
-
-Underfull \hbox (badness 10000) in paragraph at lines 59--60
-
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 61--62
-
- []
-
-) (./related.tex [4 <./figures/latency_50.pdf> <./figures/latency_100.pdf> <./f
-igures/mix.pdf>]
-Underfull \hbox (badness 1199) in paragraph at lines 14--16
+Package pdftex.def Info: figures/mix.pdf used on input line 48.
+(pdftex.def)             Requested size: 229.8775pt x 187.67685pt.
+)
+(./related.tex [4 <./figures/latency_50.pdf> <./figures/latency_100.pdf> <./fig
+ures/mix.pdf>]
+Underfull \hbox (badness 1199) in paragraph at lines 13--15
 \T1/ptm/m/n/10 vides low la-tency, causal con-sis-tency, read-only and
  []
 
@@ -711,7 +662,7 @@ ive/2014/texmf-dist/fonts/type1/urw/helvetic/uhvr8a.pfb></usr/local/texlive/201
 4/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2014/texmf-di
 st/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2014/texmf-dist/fonts/t
 ype1/urw/times/utmri8a.pfb>
-Output written on paper-cos518.pdf (5 pages, 102451 bytes).
+Output written on paper-cos518.pdf (5 pages, 102459 bytes).
 PDF statistics:
  186 PDF objects out of 1000 (max. 8388607)
  163 compressed objects within 2 object streams
