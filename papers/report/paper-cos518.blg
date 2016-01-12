@@ -10,45 +10,45 @@ Name 3 in "Mazierez, D. and Kaminsky, M. and Kaashoek, M.F., and Witchel, E." ha
 while executing---line 1429 of file abbrvnat.bst
 Name 3 in "Mazierez, D. and Kaminsky, M. and Kaashoek, M.F., and Witchel, E." has a comma at the end for entry sfs
 while executing---line 1429 of file abbrvnat.bst
-You've used 4 entries,
+You've used 5 entries,
             2773 wiz_defined-function locations,
-            615 strings with 5291 characters,
-and the built_in function-call counts, 2328 in all, are:
-= -- 190
-> -- 174
-< -- 3
-+ -- 58
-- -- 54
-* -- 192
-:= -- 355
-add.period$ -- 14
-call.type$ -- 4
-change.case$ -- 30
-chr.to.int$ -- 4
-cite$ -- 9
-duplicate$ -- 104
-empty$ -- 177
-format.name$ -- 60
-if$ -- 491
+            621 strings with 5462 characters,
+and the built_in function-call counts, 3000 in all, are:
+= -- 251
+> -- 213
+< -- 4
++ -- 71
+- -- 66
+* -- 244
+:= -- 447
+add.period$ -- 17
+call.type$ -- 5
+change.case$ -- 37
+chr.to.int$ -- 5
+cite$ -- 11
+duplicate$ -- 137
+empty$ -- 231
+format.name$ -- 73
+if$ -- 641
 int.to.chr$ -- 1
 int.to.str$ -- 1
-missing$ -- 4
-newline$ -- 28
-num.names$ -- 16
-pop$ -- 73
+missing$ -- 5
+newline$ -- 33
+num.names$ -- 20
+pop$ -- 90
 preamble$ -- 1
-purify$ -- 26
+purify$ -- 32
 quote$ -- 0
-skip$ -- 79
+skip$ -- 108
 stack$ -- 0
-substring$ -- 40
-swap$ -- 19
-text.length$ -- 2
+substring$ -- 74
+swap$ -- 30
+text.length$ -- 3
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 44
+type$ -- 55
 warning$ -- 1
-while$ -- 15
+while$ -- 21
 width$ -- 0
-write$ -- 59
+write$ -- 72
 (There were 3 error messages)

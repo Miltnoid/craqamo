@@ -1,4 +1,4 @@
-\begin{thebibliography}{4}
+\begin{thebibliography}{5}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
@@ -17,6 +17,12 @@ G.~DeCandia, D.~Hastorun, M.~Jampani, G.~Kakulapati, A.~Lakshman, A.~Pilchin,
 M.~Krohn, E.~Kohler, and M.~Kaashoek.
 \newblock Events can make sense.
 \newblock In \emph{USENIX Annual Technical Conference}, 2007.
+
+\bibitem[Lloyd et~al.(2013)Lloyd, Freedman, Kaminsky, and
+  Andersen]{lloyd2013stronger}
+W.~Lloyd, M.~J. Freedman, M.~Kaminsky, and D.~G. Andersen.
+\newblock Stronger semantics for low-latency geo-replicated storage.
+\newblock In \emph{NSDI}, pages 313--328, 2013.
 
 \bibitem[Mazierez et~al.(1999)Mazierez, Kaminsky, Kaashoek, and Witchel]{sfs}
 D.~Mazierez, M.~Kaminsky, M.~Kaashoek, and E.~Witchel.

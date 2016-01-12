@@ -1,21 +1,19 @@
 \BOOKMARK [1][]{section.1}{Introduction}{}% 1
 \BOOKMARK [1][]{section.2}{Design}{}% 2
 \BOOKMARK [2][]{subsection.2.1}{General framework}{section.2}% 3
-\BOOKMARK [2][]{subsection.2.2}{Interfaces}{section.2}% 4
-\BOOKMARK [2][]{subsection.2.3}{Strong consistency read and write and failure recovery}{section.2}% 5
-\BOOKMARK [2][]{subsection.2.4}{Broadcasting data}{section.2}% 6
-\BOOKMARK [2][]{subsection.2.5}{Comparing versions}{section.2}% 7
-\BOOKMARK [2][]{subsection.2.6}{Eventually consistent read}{section.2}% 8
-\BOOKMARK [2][]{subsection.2.7}{Eventually consistent write}{section.2}% 9
-\BOOKMARK [2][]{subsection.2.8}{Implementation}{section.2}% 10
-\BOOKMARK [1][]{section.3}{Evaluation}{}% 11
-\BOOKMARK [2][]{subsection.3.1}{Experiment setup}{section.3}% 12
-\BOOKMARK [2][]{subsection.3.2}{Effects of network delay on request latency}{section.3}% 13
-\BOOKMARK [2][]{subsection.3.3}{Mixing different consistency models}{section.3}% 14
-\BOOKMARK [2][]{subsection.3.4}{Effect of mixing different consistency models}{section.3}% 15
-\BOOKMARK [1][]{section.4}{Related Work}{}% 16
-\BOOKMARK [2][]{subsection.4.1}{Chain Replication \(CR\)}{section.4}% 17
-\BOOKMARK [2][]{subsection.4.2}{CRAQ}{section.4}% 18
-\BOOKMARK [2][]{subsection.4.3}{Dynamo}{section.4}% 19
-\BOOKMARK [2][]{subsection.4.4}{Eiger}{section.4}% 20
-\BOOKMARK [1][]{section.5}{Conclusions}{}% 21
+\BOOKMARK [2][]{subsection.2.2}{Original CRAQ capabilities}{section.2}% 4
+\BOOKMARK [2][]{subsection.2.3}{Broadcasting data}{section.2}% 5
+\BOOKMARK [2][]{subsection.2.4}{Comparing versions}{section.2}% 6
+\BOOKMARK [2][]{subsection.2.5}{Eventually consistent read}{section.2}% 7
+\BOOKMARK [2][]{subsection.2.6}{Eventually consistent write}{section.2}% 8
+\BOOKMARK [2][]{subsection.2.7}{Implementation}{section.2}% 9
+\BOOKMARK [1][]{section.3}{Evaluation}{}% 10
+\BOOKMARK [2][]{subsection.3.1}{Experiment setups}{section.3}% 11
+\BOOKMARK [2][]{subsection.3.2}{Effects of network delay on request latency}{section.3}% 12
+\BOOKMARK [2][]{subsection.3.3}{Effect of mixing different consistency models}{section.3}% 13
+\BOOKMARK [1][]{section.4}{Related Work}{}% 14
+\BOOKMARK [2][]{subsection.4.1}{Chain Replication \(CR\)}{section.4}% 15
+\BOOKMARK [2][]{subsection.4.2}{CRAQ}{section.4}% 16
+\BOOKMARK [2][]{subsection.4.3}{Dynamo}{section.4}% 17
+\BOOKMARK [2][]{subsection.4.4}{Eiger}{section.4}% 18
+\BOOKMARK [1][]{section.5}{Conclusions}{}% 19
