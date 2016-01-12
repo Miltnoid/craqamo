@@ -10,11 +10,12 @@
 \BOOKMARK [2][]{subsection.2.8}{Implementation}{section.2}% 10
 \BOOKMARK [1][]{section.3}{Evaluation}{}% 11
 \BOOKMARK [2][]{subsection.3.1}{Experiment setup}{section.3}% 12
-\BOOKMARK [2][]{subsection.3.2}{Performances under different latencies}{section.3}% 13
+\BOOKMARK [2][]{subsection.3.2}{Effects of network delay on request latency}{section.3}% 13
 \BOOKMARK [2][]{subsection.3.3}{Mixing different consistency models}{section.3}% 14
-\BOOKMARK [1][]{section.4}{Related Work}{}% 15
-\BOOKMARK [2][]{subsection.4.1}{Chain Replication \(CR\)}{section.4}% 16
-\BOOKMARK [2][]{subsection.4.2}{CRAQ}{section.4}% 17
-\BOOKMARK [2][]{subsection.4.3}{Dynamo}{section.4}% 18
-\BOOKMARK [2][]{subsection.4.4}{Eiger}{section.4}% 19
-\BOOKMARK [1][]{section.5}{Conclusions}{}% 20
+\BOOKMARK [2][]{subsection.3.4}{Effect of mixing different consistency models}{section.3}% 15
+\BOOKMARK [1][]{section.4}{Related Work}{}% 16
+\BOOKMARK [2][]{subsection.4.1}{Chain Replication \(CR\)}{section.4}% 17
+\BOOKMARK [2][]{subsection.4.2}{CRAQ}{section.4}% 18
+\BOOKMARK [2][]{subsection.4.3}{Dynamo}{section.4}% 19
+\BOOKMARK [2][]{subsection.4.4}{Eiger}{section.4}% 20
+\BOOKMARK [1][]{section.5}{Conclusions}{}% 21

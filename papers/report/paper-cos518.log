@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  11 JAN 2016 23:13
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2014) (preloaded format=pdflatex 2014.5.25)  11 JAN 2016 23:54
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -592,23 +592,78 @@ Underfull \hbox (badness 1817) in paragraph at lines 20--21
 \T1/ptm/m/n/10 motely com-pare ver-sions of ob-jects be-tween nodes.
  []
 
-[2]) (./eval.tex) (./related.tex [3]) (./conclusion.tex) (./paper-cos518.bbl)
-Package atveryend Info: Empty hook `BeforeClearDocument' on input line 146.
+[2]) (./eval.tex
+Underfull \hbox (badness 10000) in paragraph at lines 5--8
+\T1/ptm/m/n/10 We de-ployed ZooKeeper ser-vice and the
+ []
 
-[4]
+
+Underfull \hbox (badness 5475) in paragraph at lines 5--8
+\T1/ptm/m/n/10 CRAQamo server nodes on Prince-ton Uni-ver-sity's
+ []
+
+
+Underfull \hbox (badness 2088) in paragraph at lines 5--8
+\T1/ptm/m/n/10 have 4 In-tel(R) Xeon(R) CPUs which each run at
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 5--8
+
+ []
+
+
+Underfull \hbox (badness 2503) in paragraph at lines 13--14
+\T1/ptm/m/n/10 the pro-por-tion of write re-quests to bet-ter il-lus-trate
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 13--14
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 18--19
+
+ []
+
+
+Underfull \vbox (badness 1173) has occurred while \output is active []
+
+ [3]
+Underfull \hbox (badness 10000) in paragraph at lines 21--22
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 28--29
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 33--34
+
+ []
+
+) (./related.tex [4]) (./conclusion.tex) (./paper-cos518.bbl)
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 146.
+ [5
+
+]
 Package atveryend Info: Empty hook `AfterLastShipout' on input line 146.
- (./paper-cos518.aux)
+
+(./paper-cos518.aux)
 Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 146.
 Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 146.
 Package rerunfilecheck Info: File `paper-cos518.out' has not changed.
-(rerunfilecheck)             Checksum: 9F82B1F7FC2B4CCE8932FEFACAC843F7;1263.
+(rerunfilecheck)             Checksum: 26F4AF90A2D89F3B7F394A54193C64EE;1362.
 Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 146.
  ) 
 Here is how much of TeX's memory you used:
- 7198 strings out of 493117
- 105003 string characters out of 6135433
- 197266 words of memory out of 5000000
- 10506 multiletter control sequences out of 15000+600000
+ 7201 strings out of 493117
+ 105039 string characters out of 6135433
+ 196266 words of memory out of 5000000
+ 10507 multiletter control sequences out of 15000+600000
  46921 words of font info for 71 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  29i,8n,43p,1408b,321s stack positions out of 5000i,500n,10000p,200000b,80000s
@@ -618,10 +673,10 @@ xlive/2014/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/local/texl
 ive/2014/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texlive/2014/t
 exmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2014/texmf-dist/
 fonts/type1/urw/times/utmri8a.pfb>
-Output written on paper-cos518.pdf (4 pages, 79642 bytes).
+Output written on paper-cos518.pdf (5 pages, 83801 bytes).
 PDF statistics:
- 146 PDF objects out of 1000 (max. 8388607)
- 133 compressed objects within 2 object streams
- 31 named destinations out of 1000 (max. 500000)
- 161 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 154 PDF objects out of 1000 (max. 8388607)
+ 140 compressed objects within 2 object streams
+ 33 named destinations out of 1000 (max. 500000)
+ 169 words of extra memory for PDF output out of 10000 (max. 10000000)
 
